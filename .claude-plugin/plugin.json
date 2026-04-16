@@ -1,0 +1,12 @@
+{
+  "name": "xorio",
+  "version": "0.1.0",
+  "description": "xorio development toolkit — dev workflows, testing, cleanup, polish, review, security",
+  "author": {
+    "name": "Radu Marias",
+    "url": "https://github.com/radumarias"
+  },
+  "repository": "https://github.com/radumarias/xorio-claude-plugin",
+  "license": "MIT",
+  "keywords": ["development", "testing", "code-quality", "workflows"]
+}

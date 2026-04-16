@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cat ${CLAUDE_PLUGIN_ROOT}/rules/planning.md ${CLAUDE_PLUGIN_ROOT}/rules/tools.md",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
