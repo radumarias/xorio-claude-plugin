@@ -35,6 +35,11 @@ Use `/xorio:guide` for an interactive walkthrough of available workflows with co
 
 Use `/xorio:check-deps` to verify all required external plugins and MCP servers are installed.
 
+Standalone commands (not part of larger pipelines):
+- `/xorio:commit-message` — generates a git commit message from staged + unstaged changes
+- `/xorio:mallware-check` — recursive malware/obfuscation/prompt-injection scan of cwd
+- `/xorio:root-cause` — 5 Whys root cause analysis for a given problem
+
 ### Agent Design Conventions
 
 - Agents use YAML frontmatter: `name`, `description`, `color`, `model`, `tools`. Auto-discoverable agents include `<example>` tags in their description; internal pipeline agents use a "Do NOT invoke directly" description instead.
