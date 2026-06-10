@@ -1,6 +1,6 @@
 ---
 description: Create a git commit
-allowed-tools: Bash(git status:*), Bash(git diff:*), "Bash(git branch --show-current)", "Bash(git log:*)"
+allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git branch --show-current), Bash(git log:*)
 ---
 
 ## Context

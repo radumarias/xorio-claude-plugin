@@ -4,3 +4,4 @@ Thumbs.db
 *.swo
 *~
 .claude/*.local.md
+.claude/settings.local.json

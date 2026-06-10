@@ -21,7 +21,7 @@ Files in current directory:
 
 ## Instructions
 
-Scan the current working directory by dispatching exactly 3 Agent subagents **in parallel in a single message** (all with `model: "opus"`). Each agent must use Grep, Glob, and Read to scan ALL files recursively in the current directory. After all agents complete, compile the final report.
+Scan the current working directory by dispatching exactly 3 Agent subagents **in parallel in a single message**, all on the **STRONG tier** — the most capable Claude model currently available. Resolve it at runtime from the session environment (the system context names the current flagship) and the Agent tool's `model` options; never hardcode a model name here. If the session already runs on the flagship, omit the `model` param to inherit it. Each agent must use Grep, Glob, and Read to scan ALL files recursively in the current directory. After all agents complete, compile the final report.
 
 IMPORTANT: All 3 agents must be dispatched in a SINGLE message to run in parallel. Do NOT run them sequentially.
 

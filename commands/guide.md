@@ -1,7 +1,7 @@
 ---
 description: "Interactive guide — discover xorio workflows, get recommendations, and start flows"
 argument-hint: "[workflow-name]"
-allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git status:*), "Bash(git branch --show-current)", Bash(test -f:*)
+allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git status:*), Bash(git branch --show-current), Bash(test -f:*)
 ---
 
 # Guide Command
@@ -21,6 +21,10 @@ Valid workflow names (also accept common aliases):
 - `commit` (aliases: `commit-message`)
 - `root-cause` (aliases: `rca`, `debug`, `5-whys`)
 - `deps` (aliases: `check-deps`, `dependencies`)
+- `review-pr` (aliases: `pr-review`, `ultra-review`)
+- `mallware-check` (aliases: `malware`, `malware-check`, `scan`)
+- `brainstorm` (aliases: `ideas`, `ideate`)
+- `review-loop` (aliases: `audit`, `audit-loop`)
 
 ## Step 1: Context Detection (silent — never print raw output)
 
@@ -58,6 +62,10 @@ Print the overview table and a context-based recommendation.
 | 6 | Commit | Generate a conventional commit message from current changes (read-only) | `/xorio:commit-message` |
 | 7 | Root Cause | 5 Whys analysis — trace a problem to its root cause | `/xorio:root-cause` |
 | 8 | Check Deps | Verify required plugins and MCP servers are installed | `/xorio:check-deps` |
+| 9 | Review PR | Deep multi-agent PR review — adversarial validation, verified fixes, looped to convergence | `/xorio:review-pr` |
+| 10 | Malware Check | Recursive scan for malware, obfuscation, call-home, prompt injection | `/xorio:mallware-check` |
+| 11 | Brainstorm | Multi-agent ideation — ideate across lenses → refute → debate → ranked report | `/xorio:brainstorm` |
+| 12 | Review Loop | Multi-round audit loop — finders → adversarial verify → fix → repeat until dry | `/xorio:review-loop` |
 ```
 
 Then print a **Recommendation** based on these rules (first match wins):
@@ -73,12 +81,12 @@ Also show detected languages: "Detected: **{LANGUAGES}**" (or "No language-speci
 
 Ask:
 
-> Pick a number (1-8), type a workflow name, or describe what you need.
+> Pick a number (1-12), type a workflow name, or describe what you need.
 
 Map the response:
-- Numbers 1-8 → corresponding workflow
+- Numbers 1-12 → corresponding workflow
 - Workflow names or aliases (from the list above) → corresponding workflow
-- Keywords: "test" → tests, "clean"/"polish"/"prepare"/"pr-ready" → polish, "auto" → polish-auto, "review"/"check" → review, "feature"/"build"/"implement" → build, "commit"/"message" → commit, "why"/"root"/"cause"/"debug" → root-cause, "dep"/"install"/"setup" → deps
+- Keywords: "test" → tests, "clean"/"polish"/"prepare"/"pr-ready" → polish, "auto" → polish-auto, "review"/"check" → review, "feature"/"build"/"implement" → build, "commit"/"message" → commit, "why"/"root"/"cause"/"debug" → root-cause, "dep"/"install"/"setup" → deps, "pr"/"pull request" → review-pr, "malware"/"scan"/"threat" → mallware-check, "brainstorm"/"ideas"/"options" → brainstorm, "audit"/"loop" → review-loop
 - If unclear, ask again with clarification
 
 ## Step 4: Explain + Start
@@ -245,3 +253,82 @@ Verifies that all required external plugins and MCP servers are installed:
 Ask: **Start now?**
 
 If confirmed, run the `/xorio:check-deps` command.
+
+---
+
+### If workflow = `review-pr`
+
+**Deep Multi-Agent PR Review**
+
+A looped, multi-agent review of a PR or local diff that converges on verified fixes:
+
+1. Multi-lens review — parallel agents review the diff from different angles
+2. Deterministic validation — findings checked against the actual code
+3. Adversarial validation — skeptic agents try to refute each finding
+4. Verified fixes — confirmed findings are fixed and re-checked
+5. Loop — repeat until no new validated findings remain
+
+Variant: `/xorio:review-pr-mythos` runs every agent on Fable with max thinking.
+
+Ask: **Which target?** (a PR number, git range, or `staged`/`unstaged`/`working-tree` — default: current branch diff)
+
+Then ask: **Start now?**
+
+If confirmed, run `/xorio:review-pr` with the chosen target.
+
+---
+
+### If workflow = `mallware-check`
+
+**Malware / Threat Scan**
+
+Recursively scans the current directory for threats:
+
+1. Dispatches three STRONG-tier agents in parallel
+2. Each scans all files for malicious code, obfuscation, call-home behavior, prompt-injection payloads, and Claude Code plugin threats
+3. Compiles a consolidated risk report
+
+Ask: **Start now?**
+
+If confirmed, run the `/xorio:mallware-check` command.
+
+---
+
+### If workflow = `brainstorm`
+
+**Multi-Agent Brainstorm**
+
+Structured ideation on any topic via a Map → Ideate → Refute → Debate → Synthesize workflow:
+
+1. Ideate across diverse lenses with mixed model tiers
+2. Adversarially refute every idea (default-refuted majority vote)
+3. Debate the survivors
+4. Synthesize a ranked, vetted report saved to a file
+
+Variant: `xorio:brainstorm-mythos` runs every agent on Fable with max thinking.
+
+Ask: **What topic or question?** (capture the description)
+
+Then ask: **Start now?**
+
+If confirmed, invoke the `xorio:brainstorm` skill via the Skill tool with the topic.
+
+---
+
+### If workflow = `review-loop`
+
+**Multi-Round Audit Loop**
+
+A thorough quality + correctness pass on a branch or diff before pushing or merging:
+
+1. Simplify the changed code
+2. Run parallel finders (code review, optional security review)
+3. Adversarially verify each finding (3 lenses, default-refuted)
+4. Apply verified fixes
+5. Repeat until rounds come up dry or the round limit is reached
+
+Ask: **Which scope?** (e.g. `origin/main..HEAD`, `staged`, `working-tree` — default: current branch vs default branch)
+
+Then ask: **Start now?**
+
+If confirmed, invoke the `xorio:review-loop` skill via the Skill tool with the chosen scope.

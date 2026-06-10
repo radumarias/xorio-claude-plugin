@@ -16,6 +16,8 @@ Supports **Rust**, **TypeScript**, and **Python**, with framework-specific stand
 | `/xorio:mallware-check` | Recursive scan for malware, obfuscation, call-home, prompt injection, plugin threats |
 | `/xorio:root-cause` | 5 Whys root-cause analysis for a given problem |
 | `/xorio:check-deps` | Verify required external plugins and MCP servers are installed |
+| `/xorio:review-pr` | Ultracode multi-agent PR review — multi-lens findings, adversarial validation, verified fixes, looped to convergence |
+| `/xorio:review-pr-mythos` | All-Fable variant of `review-pr` — every agent on Fable with max thinking |
 
 ## Workflows in Detail
 
@@ -56,7 +58,7 @@ Reads staged + unstaged diff and current branch, drafts a Conventional Commits m
 
 ### `/xorio:mallware-check`
 
-Dispatches three Opus agents in parallel to scan the cwd for malicious code, obfuscation, call-home behavior, prompt-injection payloads, and Claude Code plugin threats. Returns a consolidated risk report.
+Dispatches three STRONG-tier agents (the most capable Claude model available, resolved at runtime) in parallel to scan the cwd for malicious code, obfuscation, call-home behavior, prompt-injection payloads, and Claude Code plugin threats. Returns a consolidated risk report.
 
 ### `/xorio:root-cause "<problem>"`
 
@@ -64,11 +66,16 @@ Runs the 5 Whys technique iteratively, recording findings in `RCA-{date}.md` (or
 
 ## Components
 
-**Skills** (auto-trigger or invoked by commands)
+**Skills** (auto-trigger, invoked by commands, or invoked directly as `/xorio:<skill-name>`)
 - `tests` — coverage-gap analysis and test generation
 - `polish` — full pre-PR pipeline
 - `review` — multi-agent review pipeline
 - `cleanup-code` — DRY / Law-of-Demeter / YAGNI refactoring (used inside `polish`)
+- `brainstorm` — multi-agent ideation fan-out (ideate across lenses → adversarially refute → debate → synthesize a ranked report), mixed model tiers
+- `brainstorm-mythos` — all-Fable variant of `brainstorm` (every agent on Fable with max thinking)
+- `review-loop` — multi-round audit loop: simplify → parallel finders → adversarial verify → apply verified fixes → repeat until dry
+- `generate-tests-coverage` — full-project coverage-gap scan and test generation (uses `skills/tests/references/` standards)
+- `generate-tests-module` — targeted test generation for a specific module or path
 
 **Agents**
 - `security-auditor` — OWASP Top-10 scanner (read-only, Opus)

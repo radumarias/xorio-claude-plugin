@@ -39,6 +39,13 @@ Standalone commands (not part of larger pipelines):
 - `/xorio:commit-message` — generates a git commit message from staged + unstaged changes
 - `/xorio:mallware-check` — recursive malware/obfuscation/prompt-injection scan of cwd
 - `/xorio:root-cause` — 5 Whys root cause analysis for a given problem
+- `/xorio:review-pr` — ultracode multi-agent PR review (multi-lens findings, adversarial validation, verified fixes, looped to convergence)
+- `/xorio:review-pr-mythos` — all-Fable variant of `review-pr` (every agent on Fable with max thinking)
+
+Standalone skills (directly invocable, not orchestrated by a command):
+- `brainstorm` / `brainstorm-mythos` — multi-agent ideation fan-out via the Workflow tool; the orchestration script is `workflow.js` next to each SKILL.md, launched via `scriptPath: "${CLAUDE_PLUGIN_ROOT}/skills/{name}/workflow.js"`. `brainstorm` mixes model tiers; `brainstorm-mythos` runs every agent on Fable with max thinking.
+- `review-loop` — multi-round audit loop (simplify → parallel finders → adversarial verify → fix → repeat until dry), also Workflow-driven with its own `workflow.js`
+- `generate-tests-coverage` / `generate-tests-module` — test generation entry points that reuse the `test-analyzer`/`test-generator`/`test-docs-advisor` agents and load standards from `skills/tests/references/`
 
 ### Agent Design Conventions
 
