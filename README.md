@@ -24,6 +24,8 @@ Supports **Rust**, **TypeScript**, and **Python**, with framework-specific stand
 | `/xorio:review-pr` | Ultracode multi-agent PR review — multi-lens findings, adversarial validation, verified fixes, looped to convergence |
 | `/xorio:review-pr-mythos` | All-Fable variant of `review-pr` — every agent on Fable with max thinking |
 
+Skills are slash commands too — every skill is invocable as `/xorio:<skill-name>`; see [Components](#components) for the full table with arguments and auto-trigger behavior.
+
 ## Workflows in Detail
 
 ### `/xorio:tests` — generate tests
@@ -71,16 +73,25 @@ Runs the 5 Whys technique iteratively, recording findings in `RCA-{date}.md` (or
 
 ## Components
 
-**Skills** (auto-trigger, invoked by commands, or invoked directly as `/xorio:<skill-name>`)
-- `tests` — coverage-gap analysis and test generation
-- `polish` — full pre-PR pipeline
-- `review` — multi-agent review pipeline
-- `cleanup-code` — DRY / Law-of-Demeter / YAGNI refactoring (used inside `polish`)
-- `brainstorm` — multi-agent ideation fan-out (ideate across lenses → adversarially refute → debate → synthesize a ranked report), mixed model tiers
-- `brainstorm-mythos` — all-Fable variant of `brainstorm` (every agent on Fable with max thinking)
-- `review-loop` — multi-round audit loop: simplify → parallel finders → adversarial verify → apply verified fixes → repeat until dry
-- `generate-tests-coverage` — full-project coverage-gap scan and test generation (uses `skills/tests/references/` standards)
-- `generate-tests-module` — targeted test generation for a specific module or path
+**Skills**
+
+Every skill is automatically a slash command — `/xorio:<skill-name>` — no separate command file needed. The skill's frontmatter `description` provides the help text and `argument-hint` the autocomplete hint. Skills *without* `disable-model-invocation: true` can additionally auto-trigger: Claude invokes them on its own when your request matches their description. Skills *with* the flag only run when you type the slash command (or when a pipeline explicitly calls them).
+
+| Skill | Invoke as | Auto-trigger | Purpose |
+|-------|-----------|:---:|---------|
+| `tests` | `/xorio:tests [--no-docs]` | — | Coverage-gap analysis and test generation |
+| `polish` | `/xorio:polish` | ✓ | Full pre-PR pipeline |
+| `review` | `/xorio:review` | ✓ | Multi-agent review pipeline |
+| `cleanup-code` | `/xorio:cleanup-code [PATH or glob]` | — | DRY / Law-of-Demeter / YAGNI refactoring (used inside `polish`) |
+| `brainstorm` | `/xorio:brainstorm <topic> [--target P] [--rounds N] [--mid-pct P] [--lenses generic\|optimization] [--cross-model] [--out FILE]` | ✓ | Multi-agent ideation fan-out (ideate across lenses → adversarially refute → debate → synthesize a ranked report), mixed model tiers |
+| `brainstorm-mythos` | `/xorio:brainstorm-mythos <topic> [--target P] [--rounds N] [--lenses generic\|optimization] [--out FILE]` | ✓¹ | All-Fable variant of `brainstorm` (every agent on Fable with max thinking) |
+| `review-loop` | `/xorio:review-loop <scope> [--push] [--remote] [--strict] [--skip-simplify] [--with-toolkit]` | ✓ | Multi-round audit loop: simplify → parallel finders → adversarial verify → apply verified fixes → repeat until dry |
+| `generate-tests-coverage` | `/xorio:generate-tests-coverage` | — | Full-project coverage-gap scan and test generation (uses `skills/tests/references/` standards) |
+| `generate-tests-module` | `/xorio:generate-tests-module <path>` | — | Targeted test generation for a specific module or path |
+
+¹ Only when you explicitly say "mythos" / ask for the all-Fable variant; plain "brainstorm X" routes to `brainstorm`.
+
+Note: `tests`, `polish`, and `review` also exist as command files (`commands/*.md`) — command and skill are the same workflow; on a name collision the skill takes precedence for the slash name.
 
 **Agents**
 - `security-auditor` — OWASP Top-10 scanner (read-only, Opus)

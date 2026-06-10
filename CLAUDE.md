@@ -62,6 +62,7 @@ Skills follow the progressive disclosure pattern (3 levels):
 3. **Third level (references/):** Supporting files loaded only as needed. Standards, templates, detailed docs.
 
 Conventions:
+- Every skill is automatically user-invocable as `/xorio:{name}` (commands and skills are unified in Claude Code; no command file is needed to expose a skill). `argument-hint` drives the autocomplete hint. `disable-model-invocation: true` makes a skill slash-only (Claude won't auto-trigger it); on a command/skill name collision the skill takes precedence.
 - Each skill lives in `skills/{name}/SKILL.md` with a `references/` subdirectory for supporting docs
 - Skills use YAML frontmatter: `name` (kebab-case, must match folder name), `description`, `argument-hint`, `metadata`
 - Description formula: `[What it does] + [When to use it with trigger phrases] + [Key capabilities]`
