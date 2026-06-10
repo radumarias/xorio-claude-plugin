@@ -1,5 +1,8 @@
 # xorio-claude-plugin
 
+> [!WARNING]
+> **Under development — do not install or use this plugin yet.** Structure, commands, and skills are still changing and may be broken at any time. Wait for a tagged release.
+
 A Claude Code plugin providing end-to-end development workflows: test generation, code cleanup, polish-before-PR, multi-agent review, security auditing, malware scanning, commit messages, and root-cause analysis.
 
 Supports **Rust**, **TypeScript**, and **Python**, with framework-specific standards for **egui**, **React**, **Vue.js**, **Three.js**, **SparkJS**, **Docker**, and **AWS**.
