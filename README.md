@@ -2,6 +2,8 @@
 
 > [!WARNING]
 > **Under development — do not install or use this plugin yet.** Structure, commands, and skills are still changing and may be broken at any time. Wait for a tagged release.
+>
+> Meanwhile, you can experiment by copying individual files into your own `.claude` folder: `commands/*.md` → `~/.claude/commands/` and `skills/<name>/` → `~/.claude/skills/` (replace any `${CLAUDE_PLUGIN_ROOT}` references with the absolute path to where you copied the files).
 
 A Claude Code plugin providing end-to-end development workflows: test generation, code cleanup, polish-before-PR, multi-agent review, security auditing, malware scanning, commit messages, and root-cause analysis.
 
