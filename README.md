@@ -104,6 +104,17 @@ Note: `tests`, `polish`, and `review` also exist as command files (`commands/*.m
 
 ## Installation
 
+### From the marketplace (recommended)
+
+This repo doubles as a single-plugin marketplace. Add it, then install:
+
+```
+/plugin marketplace add radumarias/xorio-claude-plugin
+/plugin install xorio@xorio
+```
+
+### Local checkout
+
 ```bash
 git clone git@github.com:radumarias/xorio-claude-plugin.git
 claude --plugin-dir /path/to/xorio-claude-plugin

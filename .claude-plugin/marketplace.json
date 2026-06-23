@@ -1,0 +1,19 @@
+{
+  "name": "xorio",
+  "owner": {
+    "name": "Radu Marias",
+    "url": "https://github.com/radumarias"
+  },
+  "metadata": {
+    "description": "xorio development toolkit marketplace",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "xorio",
+      "source": "./",
+      "description": "xorio development toolkit — dev workflows, testing, cleanup, polish, review, security",
+      "version": "0.1.0"
+    }
+  ]
+}
