@@ -97,14 +97,21 @@ To test changes, edit files directly and restart your Claude Code session. No bu
 
 ### Installation for Development
 
+Load the plugin live from the working tree — nothing is copied into `~/.claude`:
+
 ```bash
 claude --plugin-dir /path/to/xorio-claude-plugin
 ```
 
-Or add to `~/.claude/settings.json` or project `.claude/settings.json`:
-```json
-{ "plugins": ["/path/to/xorio-claude-plugin"] }
-```
+`--plugin-dir` accepts a single plugin directory (or `.zip`) and may be repeated for multiple plugins. Edits are picked up as follows:
+
+| Component | Reload to apply edits |
+|-----------|-----------------------|
+| Skills (`SKILL.md`) | immediate (hot-reloaded) |
+| Commands, agents | `/reload-plugins` |
+| Hooks (`hooks.json`), MCP/LSP config | `/reload-plugins` or session restart |
+
+Do **not** use `/plugin marketplace add <local-path>` for development — installing from a local marketplace caches the plugin under `~/.claude/plugins/`, so source edits are not reflected. That path is for testing distribution only.
 
 ## External Dependencies
 
