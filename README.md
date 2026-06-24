@@ -113,18 +113,18 @@ This repo doubles as a single-plugin marketplace. Add it, then install:
 /plugin install xorio@xorio
 ```
 
-### Local checkout
+### Local checkout (development)
+
+Load the plugin straight from a working copy — nothing is copied into `~/.claude`:
 
 ```bash
 git clone git@github.com:radumarias/xorio-claude-plugin.git
 claude --plugin-dir /path/to/xorio-claude-plugin
 ```
 
-Or add to `~/.claude/settings.json` (user-wide) or project `.claude/settings.json`:
+`--plugin-dir` reads live from the directory (it accepts a single plugin dir or `.zip`, and can be repeated to load several plugins). After editing files: **skills** reload immediately, while **commands, agents, hooks, and MCP/LSP config** need `/reload-plugins` (or a session restart) to take effect.
 
-```json
-{ "plugins": ["/path/to/xorio-claude-plugin"] }
-```
+> Don't use `/plugin marketplace add <local-path>` for development — installing from a local marketplace caches the plugin under `~/.claude/plugins/`, so source edits are not reflected. Use `--plugin-dir` instead.
 
 After installation, run `/xorio:check-deps` to verify required external plugins and MCP servers.
 
