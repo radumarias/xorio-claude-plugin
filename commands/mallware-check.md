@@ -21,9 +21,13 @@ Files in current directory:
 
 ## Instructions
 
-Scan the current working directory by dispatching exactly 3 Agent subagents **in parallel in a single message**, all on the **STRONG tier** — the most capable Claude model currently available. Resolve it at runtime from the session environment (the system context names the current flagship) and the Agent tool's `model` options; never hardcode a model name here. If the session already runs on the flagship, omit the `model` param to inherit it. Each agent must use Grep, Glob, and Read to scan ALL files recursively in the current directory. After all agents complete, compile the final report.
+Scan the current working directory by dispatching exactly 3 Agent subagents **in parallel in a single message**, all on the **STRONG tier** — the most capable Claude model currently available. Resolve it at runtime from the session environment (the system context names the current flagship) and the Agent tool's `model` options; never hardcode a model name here. If the session already runs on the flagship, omit the `model` param to inherit it.
 
-IMPORTANT: All 3 agents must be dispatched in a SINGLE message to run in parallel. Do NOT run them sequentially.
+**Max thinking — every agent.** Each agent's prompt **MUST begin with the keyword `ultrathink` on its own line**, followed by its scan instructions. This sets the maximum thinking budget. The Agent tool has no effort/thinking parameter, so `ultrathink` at the top of the prompt is the only way to convey it, and `ultrathink` IS the maximum. `model` controls the model and `ultrathink` controls the thinking budget — the two are independent, so set both. Malware, obfuscation, and prompt-injection detection is adversarial and easy to miss; the deepest reasoning is warranted here.
+
+Each agent must use Grep, Glob, and Read to scan ALL files recursively in the current directory. After all agents complete, compile the final report.
+
+IMPORTANT: All 3 agents must be dispatched in a SINGLE message to run in parallel, and each agent's prompt must start with `ultrathink` on its own line. Do NOT run them sequentially.
 
 ---
 
