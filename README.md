@@ -101,6 +101,10 @@ Note: `tests`, `polish`, and `review` also exist as command files (`commands/*.m
 
 **Hooks**
 - `SessionStart` — injects `rules/planning.md` (SOLID, KISS, DRY, YAGNI, CoC, LoD) and `rules/tools.md` (tool-usage guidance) into every session
+- `PreToolUse(Bash|Read)` — `hooks/block-secret-file-reads.mjs` blocks reads of secret / private-data files (`.env`, `.secrets`, `*.pem`/`*.key`/`*.pfx`/`*.p12`, `id_rsa*`, `credentials`, `.pgpass`, `.netrc`) via **both** vectors: shell commands (`cat .env`, `openssl rsa -in server.key`) and the `Read` tool. `*.example` templates stay allowed. Stdlib-only Node, no config. (Plugins can't ship a declarative `permissions.deny`, so the Read vector is covered by this hook rather than a settings rule.)
+
+> [!NOTE]
+> Installing this plugin adds a hook that **inspects every `Bash` and `Read` call** in your session and denies the ones that would read a secret file. It's a deny-only guard — it never reads file contents, never phones home, and lets everything else through (quoted strings, e.g. commit messages that merely *mention* `.env`, are ignored). Matching is by filename, so a *source* file named like a secret (e.g. `credentials.ts`, `foo.key`) is also blocked — edit `RULES` in the hook if you need such names readable. If you already run your own secret guard, both fire harmlessly (both just deny). Requires `node` on `PATH`.
 
 ## Installation
 
