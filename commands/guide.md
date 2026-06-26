@@ -25,6 +25,7 @@ Valid workflow names (also accept common aliases):
 - `mallware-check` (aliases: `malware`, `malware-check`, `scan`)
 - `brainstorm` (aliases: `ideas`, `ideate`)
 - `review-loop` (aliases: `audit`, `audit-loop`)
+- `team-forming` (aliases: `form-team`, `team`, `compose-team`)
 
 ## Step 1: Context Detection (silent — never print raw output)
 
@@ -66,6 +67,7 @@ Print the overview table and a context-based recommendation.
 | 10 | Malware Check | Recursive scan for malware, obfuscation, call-home, prompt injection | `/xorio:mallware-check` |
 | 11 | Brainstorm | Multi-agent ideation — ideate across lenses → refute → debate → ranked report | `/xorio:brainstorm` |
 | 12 | Review Loop | Multi-round audit loop — finders → adversarial verify → fix → repeat until dry | `/xorio:review-loop` |
+| 13 | Team Forming | Compose & spawn an agent team for a task-group — architect plans + composes → plan-review gate → verification roles | `/xorio:team-forming` |
 ```
 
 Then print a **Recommendation** based on these rules (first match wins):
@@ -81,12 +83,12 @@ Also show detected languages: "Detected: **{LANGUAGES}**" (or "No language-speci
 
 Ask:
 
-> Pick a number (1-12), type a workflow name, or describe what you need.
+> Pick a number (1-13), type a workflow name, or describe what you need.
 
 Map the response:
-- Numbers 1-12 → corresponding workflow
+- Numbers 1-13 → corresponding workflow
 - Workflow names or aliases (from the list above) → corresponding workflow
-- Keywords: "test" → tests, "clean"/"polish"/"prepare"/"pr-ready" → polish, "auto" → polish-auto, "review"/"check" → review, "feature"/"build"/"implement" → build, "commit"/"message" → commit, "why"/"root"/"cause"/"debug" → root-cause, "dep"/"install"/"setup" → deps, "pr"/"pull request" → review-pr, "malware"/"scan"/"threat" → mallware-check, "brainstorm"/"ideas"/"options" → brainstorm, "audit"/"loop" → review-loop
+- Keywords: "test" → tests, "clean"/"polish"/"prepare"/"pr-ready" → polish, "auto" → polish-auto, "review"/"check" → review, "feature"/"build"/"implement" → build, "commit"/"message" → commit, "why"/"root"/"cause"/"debug" → root-cause, "dep"/"install"/"setup" → deps, "pr"/"pull request" → review-pr, "malware"/"scan"/"threat" → mallware-check, "brainstorm"/"ideas"/"options" → brainstorm, "audit"/"loop" → review-loop, "team"/"form team"/"compose team"/"spawn team" → team-forming
 - If unclear, ask again with clarification
 
 ## Step 4: Explain + Start
@@ -332,3 +334,24 @@ Ask: **Which scope?** (e.g. `origin/main..HEAD`, `staged`, `working-tree` — de
 Then ask: **Start now?**
 
 If confirmed, invoke the `xorio:review-loop` skill via the Skill tool with the chosen scope.
+
+---
+
+### If workflow = `team-forming`
+
+**Compose & Spawn an Agent Team**
+
+Form a team for one task-group: an architect designs the work and composes the team, an independent gate vets the plan, then the team spawns with built-in verification:
+
+1. A MAX-tier architect/planner runs first — writes a design doc + recommends the team composition, then stays on as a standing advisor
+2. An independent plan-review gate vets the design and composition before the team forms
+3. The remaining roles spawn in one wave (developer, tech-lead, `code-reviewer`, `qa-tester`, …), each briefed and acknowledged
+4. The team registry, design doc, and event log are persisted under `~/.claude/teams-state/`
+
+Variant flags: `--no-architect` (skip the planner for trivial task-groups) · `--no-review-plan` (skip the plan-review gate).
+
+Ask: **What task-group?** (a path to a task-group file, or an inline spec with outcome + tasks + acceptance criteria)
+
+Then ask: **Start now?**
+
+If confirmed, invoke the `xorio:team-forming` skill via the Skill tool with the task-group.
