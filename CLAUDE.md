@@ -9,13 +9,16 @@ A Claude Code plugin (`xorio`) providing development workflows: test generation,
 ## Plugin Architecture
 
 ```
-.claude-plugin/plugin.json  ← manifest (name, version, metadata)
-agents/                     ← autonomous subagents (launched via Task tool)
-commands/                   ← slash commands (/xorio:tests, /xorio:polish, etc.)
-hooks/hooks.json            ← SessionStart hook that injects rules/planning.md + rules/tools.md
-rules/                      ← injected context: design principles (planning.md), tool usage guide (tools.md)
-skills/                     ← skill workflows (SKILL.md + references/ for standards)
+.claude-plugin/plugin.json       ← plugin manifest (name, version, metadata)
+.claude-plugin/marketplace.json  ← single-plugin marketplace manifest (repo self-installs via /plugin marketplace add)
+agents/                          ← autonomous subagents (launched via Task tool)
+commands/                        ← slash commands (/xorio:tests, /xorio:polish, etc.)
+hooks/                           ← hooks.json (SessionStart context injection + PreToolUse secret-file guard) + block-secret-file-reads.mjs
+rules/                           ← injected context: design principles (planning.md), tool usage guide (tools.md)
+skills/                          ← skill workflows (SKILL.md + references/ for standards)
 ```
+
+The repo doubles as a single-plugin marketplace: `marketplace.json` lets users `/plugin marketplace add radumarias/xorio-claude-plugin` then `/plugin install xorio@xorio`. For local development use `--plugin-dir` instead (see [Installation for Development](#installation-for-development)).
 
 ### Component Relationships
 
@@ -27,9 +30,9 @@ The `/xorio:tests` command is the primary workflow entry point. It orchestrates:
 5. User selects which gaps to fill
 6. Launching `test-generator` agent(s) (one per language, writes tests)
 
-The `/xorio:polish` command chains: `pr-review-toolkit:code-simplifier` → `cleanup-code` skill → `pr-review-toolkit:code-reviewer` → `xorio:security-auditor` → validation. Can run autonomously via `--auto` flag (uses `ralph-wiggum:ralph-loop`).
+The `/xorio:polish` command chains (`skills/polish/SKILL.md`): `pr-review-toolkit:code-simplifier` → `cleanup-code` skill → `pr-review-toolkit:code-reviewer` → `xorio:security-auditor` → `superpowers:code-reviewer` (standards validation) → language validation → `claude-md-management:revise-claude-md`. Can run autonomously via `--auto` flag (uses `ralph-wiggum:ralph-loop`, default 3 iterations).
 
-The `/xorio:review` command chains: `pr-review-toolkit:review-pr` → `code-review:code-review` → `pr-review-toolkit:code-simplifier`. Requires user interaction after step 2 (user chooses which findings to fix), so it cannot be automated with ralph-wiggum.
+The `/xorio:review` command chains (`skills/review/SKILL.md`): `superpowers:code-reviewer` (standards validation) → `pr-review-toolkit:review-pr` → `code-review:code-review` → `pr-review-toolkit:code-simplifier` → `claude-md-management:revise-claude-md`. The `review-pr` step STOPs to let the user choose which findings to fix before any are applied, so this pipeline cannot be automated with ralph-wiggum.
 
 Use `/xorio:guide` for an interactive walkthrough of available workflows with context-aware recommendations.
 
@@ -53,7 +56,7 @@ Standalone skills (directly invocable, not orchestrated by a command):
 - Agents use YAML frontmatter: `name`, `description`, `color`, `model`, `tools`. Auto-discoverable agents include `<example>` tags in their description; internal pipeline agents use a "Do NOT invoke directly" description instead.
 - Analysis agents (test-analyzer, test-docs-advisor, security-auditor) are read-only — they never write files
 - Generator agents (test-generator) can read, write, edit, and run validation commands
-- Agent `model` choices: `sonnet` for complex analysis/generation, `haiku` for lighter tasks (docs review)
+- Agent `model` choices: `opus` for security auditing (security-auditor), `sonnet` for analysis/generation (test-analyzer, test-generator), `haiku` for lighter tasks (test-docs-advisor)
 
 ### Skill Design Conventions (per Anthropic's Complete Guide to Building Skills)
 
