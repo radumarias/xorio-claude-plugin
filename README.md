@@ -19,7 +19,7 @@ Supports **Rust**, **TypeScript**, and **Python**, with framework-specific stand
 | `/xorio:review` | Multi-agent PR review with code review and simplification passes |
 | `/xorio:commit-message` | Generate a Conventional Commits message from staged + unstaged changes (does not commit) |
 | `/xorio:mallware-check` | Recursive scan for malware, obfuscation, call-home, prompt injection, plugin threats |
-| `/xorio:root-cause` | 5 Whys root-cause analysis for a given problem |
+| `/xorio:root-cause` | Evidence-grounded 5 Whys root-cause analysis (`--deep` for a multi-agent causal-tree investigation) |
 | `/xorio:check-deps` | Verify required external plugins and MCP servers are installed |
 | `/xorio:review-pr` | Ultracode multi-agent PR review — multi-lens findings, adversarial validation, verified fixes, looped to convergence |
 | `/xorio:review-pr-mythos` | All-Fable variant of `review-pr` — every agent on Fable with max thinking |
@@ -69,7 +69,9 @@ Dispatches three STRONG-tier agents (the most capable Claude model available, re
 
 ### `/xorio:root-cause "<problem>"`
 
-Runs the 5 Whys technique iteratively, recording findings in `RCA-{date}.md` (or appending to existing `RCA.md`). Stops at root cause without entering solution mode.
+Runs an **evidence-grounded** 5 Whys: each causal link is proven against the system (`git blame`/`log`, grep, running the repro) and cited — not just asserted — and alternative branches are weighed to avoid tunnel vision. Records findings in `RCA-{date}.md` (or appends to existing `RCA.md`) and stops at the root cause without entering solution mode.
+
+Add **`--deep`** for a multi-agent investigation (via the Workflow tool): triage → parallel hypothesis lenses (recent-change, code-path, config, data, dependency) → ground + adversarially verify each link → synthesize a ranked causal tree. Use it for gnarly or likely-multi-cause failures.
 
 ## Components
 

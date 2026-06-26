@@ -220,21 +220,23 @@ If confirmed, invoke the `xorio:commit-message` command by running it as `/xorio
 
 ### If workflow = `root-cause`
 
-**Root Cause Analysis (5 Whys)**
+**Root Cause Analysis (evidence-grounded 5 Whys)**
 
-Traces a problem to its root cause using the 5 Whys technique:
+Traces a problem to its root cause using the 5 Whys — but grounds every link in evidence and weighs alternatives instead of following one speculative chain:
 
 1. State the problem clearly
-2. Ask "Why did this happen?" and identify the answer
-3. For each answer, ask "Why?" again
-4. Continue until reaching the root cause (typically 3-7 iterations)
-5. Document findings in an RCA file in the project root
+2. Ask "Why did this happen?" — then **prove** the answer (`git blame`/`log`, grep, run the repro) and cite it
+3. For each grounded answer, ask "Why?" again; at the first step weigh 2–4 candidate causes, not one
+4. Continue until reaching the root cause (typically 3–7 iterations) or a cycle
+5. Document findings + citations in an RCA file in the project root (no solution mode)
 
-Ask: **What problem are you investigating?** (capture the description)
+Variant: **`--deep`** runs a multi-agent causal-tree investigation (Workflow tool) — parallel hypothesis lenses → ground + adversarially verify each link → ranked tree. For gnarly or multi-cause failures.
+
+Ask: **What problem are you investigating?** (capture the description; note if they want `--deep`)
 
 Then ask: **Start now?**
 
-If confirmed, invoke the `xorio:root-cause` skill via the Skill tool with the problem description.
+If confirmed, invoke the `xorio:root-cause` skill via the Skill tool with the problem description (and `--deep` if requested).
 
 ---
 
