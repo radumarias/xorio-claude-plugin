@@ -88,6 +88,7 @@ Every skill is automatically a slash command — `/xorio:<skill-name>` — no se
 | `review-loop` | `/xorio:review-loop <scope> [--push] [--remote] [--strict] [--skip-simplify] [--with-toolkit]` | ✓ | Multi-round audit loop: simplify → parallel finders → adversarial verify → apply verified fixes → repeat until dry |
 | `generate-tests-coverage` | `/xorio:generate-tests-coverage` | — | Full-project coverage-gap scan and test generation (uses `skills/tests/references/` standards) |
 | `generate-tests-module` | `/xorio:generate-tests-module <path>` | — | Targeted test generation for a specific module or path |
+| `team-forming` | `/xorio:team-forming <task-group> [--no-architect] [--no-review-plan]` | ✓ | Compose & spawn an agent team for one task-group — MAX-tier architect plans + composes → plan-review gate → independent `code-reviewer` + `qa-tester`; persists team registry, design doc, and event log under `~/.claude/teams-state/` |
 
 ¹ Only when you explicitly say "mythos" / ask for the all-Fable variant; plain "brainstorm X" routes to `brainstorm`.
 
