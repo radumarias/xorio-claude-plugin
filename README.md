@@ -26,6 +26,26 @@ Supports **Rust**, **TypeScript**, and **Python**, with framework-specific stand
 
 Skills are slash commands too — every skill is invocable as `/xorio:<skill-name>`; see [Components](#components) for the full table with arguments and auto-trigger behavior.
 
+## Usage Examples
+
+See **[docs/usage-examples.md](docs/usage-examples.md)** for end-to-end recipes — which command(s) to run, in what order, and what to expect — for each of these scenarios:
+
+| Scenario | Recipe |
+|----------|--------|
+| [Implement a feature](docs/usage-examples.md#implement-a-feature) | `feature-dev:feature-dev` → `/xorio:tests` → `/xorio:polish` → `/xorio:commit-message`<br>_Alt (team):_ `/xorio:team-forming "<spec>"` → `/xorio:review-pr` |
+| [Fix a bug](docs/usage-examples.md#fix-a-bug) | (`/xorio:root-cause` →) fix → `/xorio:tests` → `/xorio:polish`<br>_Alt (team):_ (`/xorio:root-cause` →) `/xorio:team-forming` → `/xorio:review-pr` |
+| [Do a code review](docs/usage-examples.md#do-a-code-review) | `/xorio:review` (interactive on local changes)<br>_Alt (deep):_ `/xorio:review-pr working-tree` |
+| [Clean up code](docs/usage-examples.md#clean-up-code) | `/xorio:cleanup-code [path]` |
+| [Run a security check](docs/usage-examples.md#run-a-security-check) | ask the **security-auditor** agent · built into `/xorio:polish` |
+| [Brainstorm ideas for a feature/improvement](docs/usage-examples.md#brainstorm-ideas-for-a-feature-or-improvement) | `/xorio:brainstorm "<topic>"` |
+| [Brainstorm how to optimize a flow](docs/usage-examples.md#brainstorm-how-to-optimize-a-flow) | `/xorio:brainstorm "<topic>" --lenses optimization --target <path>` |
+| [Investigate the cause of a bug](docs/usage-examples.md#investigate-the-cause-of-a-bug) | `/xorio:root-cause "<symptom>"` (`--deep` if gnarly) |
+| [Do a major refactor](docs/usage-examples.md#do-a-major-refactor) | `/xorio:brainstorm` → `/xorio:team-forming "<spec>"` → `/xorio:review-pr` |
+| [Do a global code review](docs/usage-examples.md#do-a-global-code-review) | `/xorio:review-pr <range\|#PR>` or `/xorio:review-loop <scope>` |
+| [Check for malware](docs/usage-examples.md#check-for-malware) | `/xorio:mallware-check` |
+
+New to the plugin? **`/xorio:guide`** detects your context and recommends a workflow interactively.
+
 ## Workflows in Detail
 
 ### `/xorio:tests` — generate tests
