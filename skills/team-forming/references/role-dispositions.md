@@ -4,7 +4,7 @@ Disposition blocks for `team-forming`. Loaded only at **Build Team Prompts** tim
 
 Most blocks are reusable bases for derived roles. One — **plan-reviewer** — is a FIXED, non-derivable block: the **Adversarial Plan-Review Gate** (see `SKILL.md`) spawns it directly to gate the architect's plan before wave 1; it is never produced by role derivation.
 
-Model tier per block header refers to the tiers defined in `SKILL.md` (**Model tiers**) — `haiku` / `sonnet` / the top tier (the most capable model available, `opus` today). MAX-tier blocks additionally take the `Ultrathink — use maximum thinking.` prefix.
+Model tier per block header refers to the tiers defined in `SKILL.md` (**Model tiers**) — `haiku` / `sonnet` / the top tier (the most capable model available, `opus` today; `fable` when the `--fable` flag is set). MAX-tier blocks additionally take the `Ultrathink — use maximum thinking.` prefix and spawn with `effort="max"`.
 
 ---
 

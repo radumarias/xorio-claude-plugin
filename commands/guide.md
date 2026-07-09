@@ -350,7 +350,7 @@ Form a team for one task-group: an architect designs the work and composes the t
 3. The remaining roles spawn in one wave (developer, tech-lead, `code-reviewer`, `qa-tester`, …), each briefed and acknowledged
 4. The team registry, design doc, and event log are persisted under `~/.claude/teams-state/`
 
-Variant flags: `--no-architect` (skip the planner for trivial task-groups) · `--no-review-plan` (skip the plan-review gate).
+Variant flags: `--no-architect` (skip the planner for trivial task-groups) · `--no-review-plan` (skip the plan-review gate) · `--fable` (run the best-model roles — architect, plan-reviewer, code-reviewer, qa-tester — on Fable at `effort="max"`).
 
 Ask: **What task-group?** (a path to a task-group file, or an inline spec with outcome + tasks + acceptance criteria)
 
