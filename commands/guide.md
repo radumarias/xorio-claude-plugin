@@ -248,7 +248,7 @@ If confirmed, invoke the `xorio:root-cause` skill via the Skill tool with the pr
 
 Verifies that all required external plugins and MCP servers are installed:
 
-1. Checks for required plugins: pr-review-toolkit, code-review, ralph-wiggum, security-guidance
+1. Checks for required plugins: pr-review-toolkit, ralph-wiggum, security-guidance
 2. Checks for recommended plugins: feature-dev, frontend-design, superpowers, commit-commands, claude-md-management
 3. Checks for required MCP servers: context7, ast-grep, serena
 4. Checks for recommended MCP servers: memory, claude-in-chrome

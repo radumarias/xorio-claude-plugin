@@ -95,7 +95,7 @@ Also available as a skill: `pr-review-toolkit:review-pr` — runs a comprehensiv
 
 **superpowers:code-reviewer** — Validates changes against the original plan and project coding standards. Invoke via Task tool with `subagent_type: superpowers:code-reviewer`. Use after a major implementation step is complete to ensure adherence to the plan and conventions.
 
-**code-review** — Invoke via skill `code-review:code-review` for PR-level code review.
+**code-review** (built-in) — Claude Code's built-in `/code-review` reviews the current working diff for correctness bugs plus reuse/simplification/efficiency cleanups. Takes an effort level (`/code-review max` for the broadest coverage); `--fix` applies findings to the working tree, `--comment` posts them as inline PR comments. `/xorio:review` runs it at max effort. (Distinct from the deprecated external `code-review:code-review` plugin, which is no longer a dependency.)
 
 **feature-dev** — Invoke via skill `feature-dev:feature-dev` for guided feature development with codebase analysis.
 
@@ -135,4 +135,4 @@ For iterative polishing, wrap in Ralph Wiggum:
 
 ### Review — `/xorio:review`
 
-Runs `pr-review-toolkit:review-pr` (with user-guided fix selection), `code-review:code-review`, `pr-review-toolkit:code-simplifier`, `superpowers:code-reviewer`, and `claude-md-management:revise-claude-md`. **Not suitable for Ralph** — requires user interaction after the first step to choose which findings to fix.
+Runs `pr-review-toolkit:review-pr` (with user-guided fix selection), built-in `/code-review max`, `pr-review-toolkit:code-simplifier`, `superpowers:code-reviewer`, and `claude-md-management:revise-claude-md`. **Not suitable for Ralph** — requires user interaction after the first step to choose which findings to fix.

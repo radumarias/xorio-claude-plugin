@@ -12,7 +12,6 @@ Read `~/.claude/settings.json` and check the `enabledPlugins` object for these k
 
 **Required** (workflows break without these):
 - `pr-review-toolkit` — used by `/xorio:polish` and `/xorio:review`
-- `code-review` — used by `/xorio:review`
 - `ralph-wiggum` — used by `/xorio:polish --auto`
 - `security-guidance` — automatic security hooks on file edits, used by polish/review workflows
 
@@ -49,7 +48,6 @@ Present results as a table:
 | Dependency | Type | Status | Used by |
 |---|---|---|---|
 | pr-review-toolkit | plugin | OK/MISSING | polish, review |
-| code-review | plugin | OK/MISSING | review |
 | ralph-wiggum | plugin | OK/MISSING | polish --auto |
 | security-guidance | plugin | OK/MISSING | polish, review, cleanup-code |
 | feature-dev | plugin | OK/MISSING (optional) | build workflow |
@@ -71,7 +69,6 @@ For any missing dependency, provide the install command:
 
 **Plugins** — search and install from the Claude Code plugin registry:
 - `pr-review-toolkit` — search: "pr-review-toolkit"
-- `code-review` — search: "code-review"
 - `ralph-wiggum` — search: "ralph-wiggum"
 - `security-guidance` — search: "security-guidance"
 - `feature-dev` — search: "feature-dev"

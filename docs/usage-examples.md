@@ -7,7 +7,7 @@ section gives the command(s) to run, the order to run them in, and what to expec
 > **Before you start:** make sure the plugin is loaded (see the
 > [README → Installation](../README.md#installation)) and run **`/xorio:check-deps`**
 > once — several of these recipes call external plugins (`feature-dev`,
-> `pr-review-toolkit`, `code-review`, `ralph-wiggum`, `superpowers`, …).
+> `pr-review-toolkit`, `ralph-wiggum`, `superpowers`, …).
 > Not sure where to start? **`/xorio:guide`** detects your context and recommends a
 > workflow interactively.
 

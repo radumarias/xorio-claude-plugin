@@ -32,7 +32,7 @@ The `/xorio:tests` command is the primary workflow entry point. It orchestrates:
 
 The `/xorio:polish` command chains (`skills/polish/SKILL.md`): `pr-review-toolkit:code-simplifier` → `cleanup-code` skill → `pr-review-toolkit:code-reviewer` → `xorio:security-auditor` → `superpowers:code-reviewer` (standards validation) → language validation → `claude-md-management:revise-claude-md`. Can run autonomously via `--auto` flag (uses `ralph-wiggum:ralph-loop`, default 3 iterations).
 
-The `/xorio:review` command chains (`skills/review/SKILL.md`): `superpowers:code-reviewer` (standards validation) → `pr-review-toolkit:review-pr` → `code-review:code-review` → `pr-review-toolkit:code-simplifier` → `claude-md-management:revise-claude-md`. The `review-pr` step STOPs to let the user choose which findings to fix before any are applied, so this pipeline cannot be automated with ralph-wiggum.
+The `/xorio:review` command chains (`skills/review/SKILL.md`): `superpowers:code-reviewer` (standards validation) → `pr-review-toolkit:review-pr` → built-in `/code-review max` (Claude Code's built-in command, run at max effort on the local diff) → `pr-review-toolkit:code-simplifier` → `claude-md-management:revise-claude-md`. The `review-pr` step STOPs to let the user choose which findings to fix before any are applied, so this pipeline cannot be automated with ralph-wiggum.
 
 Use `/xorio:guide` for an interactive walkthrough of available workflows with context-aware recommendations.
 
@@ -126,7 +126,7 @@ Do **not** use `/plugin marketplace add <local-path>` for development — instal
 
 This plugin depends on other plugins and MCP servers. Run `/xorio:check-deps` to verify.
 
-**Required plugins:** `pr-review-toolkit`, `code-review`, `ralph-wiggum`, `security-guidance`
+**Required plugins:** `pr-review-toolkit`, `ralph-wiggum`, `security-guidance`
 **Required MCP servers:** `context7`, `ast-grep`, `serena`
 **Recommended plugins:** `feature-dev`, `frontend-design`, `superpowers`, `commit-commands`, `claude-md-management`
 **Recommended MCP servers:** `memory`, `claude-in-chrome`

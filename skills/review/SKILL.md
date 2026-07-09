@@ -28,7 +28,11 @@ Make a plan from the chosen findings and implement the fixes.
 
 ## Step 4: Code Review
 
-Use the Skill tool to invoke `code-review:code-review` scoped to local changes.
+Run the built-in `/code-review` at **max** effort on the local diff — invoke the
+built-in `code-review` skill (via the Skill tool) with `args: "max"`, i.e. `/code-review max`.
+This is Claude Code's built-in command (it reviews the current working diff for
+correctness bugs plus reuse/simplification/efficiency cleanups), **not** the
+`code-review:code-review` plugin.
 Fix all findings.
 
 ## Step 5: Code Simplification

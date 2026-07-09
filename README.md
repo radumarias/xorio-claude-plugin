@@ -77,7 +77,7 @@ Pipeline: `code-simplifier` → `cleanup-code` → `code-reviewer` → `security
 
 ### `/xorio:review` — multi-agent code review
 
-Pipeline: `pr-review-toolkit:review-pr` → `code-review:code-review` → `pr-review-toolkit:code-simplifier`. Presents findings; you choose what to fix. (Cannot be auto-looped — requires user selection.)
+Pipeline: `pr-review-toolkit:review-pr` → built-in `/code-review max` → `pr-review-toolkit:code-simplifier`. Presents findings; you choose what to fix. (Cannot be auto-looped — requires user selection.)
 
 ### `/xorio:commit-message`
 
@@ -157,7 +157,7 @@ After installation, run `/xorio:check-deps` to verify required external plugins 
 
 ## External Dependencies
 
-**Required plugins:** `pr-review-toolkit`, `code-review`, `ralph-wiggum`, `security-guidance`
+**Required plugins:** `pr-review-toolkit`, `ralph-wiggum`, `security-guidance`
 **Required MCP servers:** `context7`, `ast-grep`, `serena`
 **Recommended plugins:** `feature-dev`, `frontend-design`, `superpowers`, `commit-commands`, `claude-md-management`
 **Recommended MCP servers:** `memory`, `claude-in-chrome`
