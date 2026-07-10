@@ -105,7 +105,7 @@ Every skill is automatically a slash command — `/xorio:<skill-name>` — no se
 | `polish` | `/xorio:polish` | ✓ | Full pre-PR pipeline |
 | `review` | `/xorio:review` | ✓ | Multi-agent review pipeline |
 | `cleanup-code` | `/xorio:cleanup-code [PATH or glob]` | — | DRY / Law-of-Demeter / YAGNI refactoring (used inside `polish`) |
-| `brainstorm` | `/xorio:brainstorm <topic> [--target P] [--rounds N] [--mid-pct P] [--lenses generic\|optimization] [--cross-model] [--out FILE]` | ✓ | Multi-agent ideation fan-out (ideate across lenses → adversarially refute → debate → synthesize a ranked report), mixed model tiers |
+| `brainstorm` | `/xorio:brainstorm <topic> [--target P] [--rounds N] [--mid-pct P] [--lenses generic\|optimization] [--cross-model] [--fable] [--out FILE]` | ✓ | Multi-agent ideation fan-out (ideate across lenses → adversarially refute → debate → synthesize a ranked report), mixed model tiers (`--fable` pins the STRONG tier to Fable at max effort) |
 | `brainstorm-mythos` | `/xorio:brainstorm-mythos <topic> [--target P] [--rounds N] [--lenses generic\|optimization] [--out FILE]` | ✓¹ | All-Fable variant of `brainstorm` (every agent on Fable with max thinking) |
 | `review-loop` | `/xorio:review-loop <scope> [--push] [--remote] [--strict] [--skip-simplify] [--with-toolkit]` | ✓ | Multi-round audit loop: simplify → parallel finders → adversarial verify → apply verified fixes → repeat until dry |
 | `generate-tests-coverage` | `/xorio:generate-tests-coverage` | — | Full-project coverage-gap scan and test generation (uses `skills/tests/references/` standards) |

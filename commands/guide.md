@@ -272,7 +272,8 @@ A looped, multi-agent review of a PR or local diff that converges on verified fi
 4. Verified fixes — confirmed findings are fixed and re-checked
 5. Loop — repeat until no new validated findings remain
 
-Variant: `/xorio:review-pr-mythos` runs every agent on Fable with max thinking.
+Variant flags: `--fable` runs the best-model (STRONG-tier) agents on Fable at max effort (cheaper than all-Fable) · `--cross-model` adds a Codex/GPT validator · `--comment` posts inline PR comments · `--approve-gate` lets you pick fixes.
+Variant: `/xorio:review-pr-mythos` runs *every* agent on Fable with max thinking.
 
 Ask: **Which target?** (a PR number, git range, or `staged`/`unstaged`/`working-tree` — default: current branch diff)
 
@@ -309,7 +310,8 @@ Structured ideation on any topic via a Map → Ideate → Refute → Debate → 
 3. Debate the survivors
 4. Synthesize a ranked, vetted report saved to a file
 
-Variant: `xorio:brainstorm-mythos` runs every agent on Fable with max thinking.
+Variant flags: `--fable` pins the STRONG tier to Fable at max effort (best-model agents only, cheaper than all-Fable) · `--cross-model` adds a Codex/GPT validator · `--rounds N` sets depth · `--mid-pct P` sets the MID/STRONG split.
+Variant: `xorio:brainstorm-mythos` runs *every* agent on Fable with max thinking.
 
 Ask: **What topic or question?** (capture the description)
 

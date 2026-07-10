@@ -26,6 +26,7 @@ const MID_PCT = Math.max(0, Math.min(100, Number(A.mid_pct != null ? A.mid_pct :
 const ROUNDS = Math.max(1, Math.min(8, Number(A.rounds) || 2))
 const CAP = Math.max(1, Math.min(40, Number(A.cap) || 12))   // max fresh ideas refuted per round
 const CROSS_MODEL = !!A.cross_model                          // route 3rd refute validator through Codex/GPT
+const FABLE_MODE = !!A.fable                                 // --fable: pin the STRONG tier to Fable + MAX effort (best-model agents at full power)
 const HARD_ROUNDS = 8                                        // backstop for the budget-extension loop
 
 // Model TIERS, resolved by the caller at run start (see SKILL.md "Model tiers")
@@ -52,7 +53,7 @@ function pick(seed) {
   h ^= h << 5; h >>>= 0
   const tier = (h % 100) < MID_PCT ? 'mid' : 'strong'
   const model = tier === 'mid' ? MID : STRONG
-  const effort = ['high', 'xhigh', 'ultracode', 'max'][(h >>> 3) % 4]
+  const effort = (FABLE_MODE && tier === 'strong') ? 'max' : ['high', 'xhigh', 'ultracode', 'max'][(h >>> 3) % 4]  // --fable pins STRONG agents to MAX effort
   if (tier === 'mid') nMid++; else nStrong++
   effTally[effort]++
   return { tier, model, effort }
@@ -232,7 +233,7 @@ for (let round = 1; round <= HARD_ROUNDS; round++) {
   const judged = await parallel(fresh.map((idea, ci) => () =>
     parallel(REFUTE_TIERS.map((slotTier, ri) => {
       const rl = REF_LENSES[ri % REF_LENSES.length]
-      const eff = pickEffort(round * 1000 + 100 + ci * 3 + ri)  // effort varies; model tier is fixed by the slot
+      const eff = (FABLE_MODE && slotTier === 'strong') ? (effTally.max++, 'max') : pickEffort(round * 1000 + 100 + ci * 3 + ri)  // --fable pins STRONG slots to MAX; else effort varies (model tier fixed by slot)
       if (slotTier === 'codex') {
         nCodex++
         return () => agent(codexRefutePrompt(idea, rl), {
@@ -311,7 +312,8 @@ log('Variety (all vetting agents): ' + nMid + ' mid / ' + nStrong + ' strong (~'
     'effort high=' + effTally.high + ' xhigh=' + effTally.xhigh + ' ultracode=' + effTally.ultracode + ' max=' + effTally.max + '. ' +
     'Map+Synthesize forced strong/max. Refute panel tiered: ' + REFUTE_TIERS.join('/') +
     ' (tiers resolved as strong=' + (STRONG || 'inherit') + ', mid=' + (MID || 'inherit') + ')' +
-    (CROSS_MODEL ? ' (' + nCodex + ' cross-model Codex/GPT validators dispatched).' : '.'))
+    (CROSS_MODEL ? ' (' + nCodex + ' cross-model Codex/GPT validators dispatched).' : '.') +
+    (FABLE_MODE ? ' [--fable: STRONG tier = Fable, pinned to MAX effort].' : ''))
 
 // ---------------------------------------------------------------------------
 // Phase: Synthesize — one STRONG/max agent writes the final ranked report
@@ -346,6 +348,6 @@ return {
     models: { strong: STRONG || 'inherit', mid: MID || 'inherit' },
     effort: effTally,
     refute_panel: REFUTE_TIERS.join('/'),
-    cross_model: CROSS_MODEL, codex_validators: nCodex,
+    cross_model: CROSS_MODEL, codex_validators: nCodex, fable: FABLE_MODE,
   },
 }

@@ -1,6 +1,6 @@
 ---
 description: Ultracode multi-agent PR review — multi-lens review, deterministic + adversarial validation, verified fixes, looped to convergence. This is the DEFAULT deep-review variant — prefer it unless the user explicitly says "mythos" or asks for the all-Fable variant (then use review-pr-mythos).
-argument-hint: "[#PR | <git-range> | staged|unstaged|working-tree] [--comment] [--approve-gate] [--cross-model] [--max-rounds N]"
+argument-hint: "[#PR | <git-range> | staged|unstaged|working-tree] [--comment] [--approve-gate] [--cross-model] [--fable] [--max-rounds N]"
 allowed-tools: ["Bash", "Glob", "Grep", "Read", "Edit", "Write", "Task", "Workflow", "WebFetch", "Skill"]
 ---
 
@@ -36,6 +36,11 @@ agents. Either way, follow the structure below exactly.
   - `--cross-model` → make the 3 adversarial validators cross-family: swap one
     STRONG validator for a Codex/GPT review (see §2d). Default: off (same-family
     tiered panel).
+  - `--fable` → resolve the **STRONG** tier to **Fable** at **max effort /
+    ultrathink** for this run — the best-model agents (correctness, security,
+    performance, error-handling lenses, and the STRONG validators). MID/LIGHT
+    agents are unchanged, so it stays cheaper than `/review-pr-mythos` (every
+    agent on Fable). Opt-in; Fable is access-gated + pricier. Default: off.
 
 Read project rule files first if present: root `CLAUDE.md`, `.claude/rules/*`.
 
@@ -58,6 +63,17 @@ start from the runtime environment — never from this file:
 If the ranking is ever unclear, omit the `model` param (inherit the session
 model) rather than guessing. Model names must never be written into this skill;
 when a newer flagship ships, this rule adopts it automatically.
+
+**`--fable` override.** When `--fable` is passed, resolve **STRONG to the `fable`
+model** and run those STRONG agents at **max effort / ultrathink** (pass
+`effort: "max"` on their `agent()` / Workflow calls and open their prompt with an
+ultrathink cue). Every STRONG-tier lens and validator — correctness, security,
+performance, error-handling, and the STRONG slots of the validator panel (§2a,
+§2d) — then runs on Fable; MID/LIGHT agents are untouched, so cheaper roles stay
+on their tiers. This is the surgical middle ground between the default (mixed
+tiers) and `/review-pr-mythos` (every agent on Fable). Opt-in — Fable is
+access-gated and pricier; if a Fable spawn is unavailable, note it and fall back
+to the default STRONG resolution.
 
 ---
 

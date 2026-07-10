@@ -1,7 +1,7 @@
 ---
 name: brainstorm
-description: 'Brainstorm [topic] [--target P] [--rounds N=2] [--mid-pct P=20] [--lenses generic|optimization] [--cross-model] [--out FILE] [+Nk]. Multi-agent fan-out: ideate across diverse lenses (mixed STRONG/MID model tiers, mixed effort) → adversarially refute → debate → synthesize a ranked report. Use when the user asks to "brainstorm", "give me several ideas/options for X", "ways to optimize/speed up X", or "explore approaches to X". This is the DEFAULT brainstorm variant — prefer it unless the user explicitly says "mythos" or asks for the all-Fable variant (then use brainstorm-mythos).'
-argument-hint: "<topic> [--target P] [--rounds N] [--mid-pct P] [--lenses generic|optimization] [--cross-model] [--out FILE]"
+description: 'Brainstorm [topic] [--target P] [--rounds N=2] [--mid-pct P=20] [--lenses generic|optimization] [--cross-model] [--fable] [--out FILE] [+Nk]. Multi-agent fan-out: ideate across diverse lenses (mixed STRONG/MID model tiers, mixed effort) → adversarially refute → debate → synthesize a ranked report. Use when the user asks to "brainstorm", "give me several ideas/options for X", "ways to optimize/speed up X", or "explore approaches to X". This is the DEFAULT brainstorm variant — prefer it unless the user explicitly says "mythos" or asks for the all-Fable variant (then use brainstorm-mythos).'
+argument-hint: "<topic> [--target P] [--rounds N] [--mid-pct P] [--lenses generic|optimization] [--cross-model] [--fable] [--out FILE]"
 allowed-tools: ["Workflow", "Bash", "Read", "Grep", "Glob", "Write", "Task"]
 ---
 
@@ -38,6 +38,16 @@ script degrades safely: those agents inherit the session model. Model names
 must never be written into this skill or `workflow.js`; when a newer flagship
 ships, this rule adopts it automatically.
 
+**`--fable` override.** When `--fable` is passed, resolve **STRONG to `fable`**
+(the `fable` option of the Workflow tool's `model`) and pass `args.fable = true`.
+The best-model agents — Map, Synthesize, and every STRONG Ideate/Refute/Debate
+slot — then run on **Fable at MAX effort** (`workflow.js` pins STRONG-tier effort
+to max under `--fable`). MID/LIGHT are untouched: cheaper roles stay on their
+tiers. This is the surgical middle ground between the default (mixed tiers) and
+`brainstorm-mythos` (every agent on Fable). Opt-in — Fable is access-gated and
+pricier; if the `fable` model option is unavailable in the runtime, note it and
+fall back to the default STRONG resolution.
+
 ## Usage
 
 ```
@@ -50,6 +60,7 @@ Flags:
 - `--mid-pct P` — % of Ideate/Debate agents on the MID tier, rest STRONG (default 20; your 10–30%). `--sonnet-pct` is accepted as a legacy alias.
 - `--lenses generic|optimization` — idea-generation lens set (default generic).
 - `--cross-model` — make the 3rd adversarial validator a **Codex/GPT** review (cross-family). Default off.
+- `--fable` — pin the **STRONG** tier to **Fable** at **max effort** (best-model agents: Map, Synthesize, and the STRONG ideators / validators / debaters). MID/LIGHT are unchanged, so it stays cheaper than `brainstorm-mythos` (which runs *every* agent on Fable). Opt-in; Fable is access-gated + pricier. Default off.
 - `--out <file>` — report path (default `BRAINSTORM-<slug>-<date>.md` in the cwd).
 - A `+Nk` budget directive (e.g. `+400k`) → the workflow runs extra Ideate→Refute waves until ~spent.
 
@@ -82,12 +93,12 @@ workflow — bound depth with `--rounds`/`+Nk`, not minutes.
    to a few representative paths with Glob; if it's a git range/`diff`, keep it as-is.
    Pass the resolved string through as `args.target`. Heavy reading happens in Map.
 
-4. **Launch the workflow** (resolve the model tiers per the block above first):
+4. **Launch the workflow** (resolve the model tiers per the block above first; when `--fable` is set, resolve `strong` to `fable` and pass `fable: true`):
    ```
    Workflow({
      scriptPath: "${CLAUDE_PLUGIN_ROOT}/skills/brainstorm/workflow.js",  // workflow.js sits next to this SKILL.md
-     args: { topic, target, lenses, mid_pct: P, rounds: N, cross_model,
-             models: { strong: "<resolved>", mid: "<resolved>", light: "<resolved>" } }
+     args: { topic, target, lenses, mid_pct: P, rounds: N, cross_model, fable,
+             models: { strong: "<resolved — 'fable' when --fable>", mid: "<resolved>", light: "<resolved>" } }
    })
    ```
    Tell the user they can watch live with `/workflows`. It runs in the background and
