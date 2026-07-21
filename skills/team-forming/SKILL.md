@@ -1,7 +1,7 @@
 ---
 name: team-forming
-description: 'Team-forming <task-group file or inline spec> [--roles r1,r2,...] [--team-slug S] [--no-architect] [--no-review-plan] [--fable]. Compose and spawn an agent team for one task-group: a MAX-tier architect/planner runs first to design the work and recommend the team composition (then stays on as a standing advisor); an independent reviewer gates the plan before the team forms; then derive the remaining roles, build disposition-based prompts, spawn via TeamCreate/Agent, persist a team registry, return the formation contract. Use when the user says "form team", "create team", "compose team", or asks to spawn a team of agents for a task.'
-argument-hint: "<task-group.md|inline spec> [--roles ...] [--team-slug S] [--no-architect] [--no-review-plan] [--fable]"
+description: 'Team-forming <task-group file or inline spec> [--roles r1,r2,...] [--team-slug S] [--no-architect] [--no-review-plan] [--no-explore] [--fable]. Compose and spawn an agent team for one task-group: an optional recon pass hands a distilled codebase map to a MAX-tier architect/planner that runs first to design the work and recommend the team composition (then stays on as a standing advisor); an independent reviewer gates the plan before the team forms; then derive the remaining roles, build disposition-based prompts, spawn via TeamCreate/Agent, persist a team registry, return the formation contract. Use when the user says "form team", "create team", "compose team", or asks to spawn a team of agents for a task.'
+argument-hint: "<task-group.md|inline spec> [--roles ...] [--team-slug S] [--no-architect] [--no-review-plan] [--no-explore] [--fable]"
 allowed-tools: ["Agent", "TeamCreate", "SendMessage", "TaskCreate", "TaskList", "TaskUpdate", "Read", "Write", "Glob", "Grep", "Bash"]
 metadata:
   version: 0.1.0
@@ -60,6 +60,7 @@ Create directories on first write. A missing pattern file is not an error — it
 - **team-slug override:** (optional, `--team-slug`)
 - **skip architect:** (optional, `--no-architect`) skip the Phase 0 architect/planner and derive roles via the cascade instead. Use only for trivial mechanical task-groups (a single pattern-following role, ≤2 tasks, no architectural concern) — for anything non-trivial the planner pays for itself.
 - **skip plan review:** (optional, `--no-review-plan`) skip the **Adversarial Plan-Review Gate**. The gate is default-on whenever the architect ran; this opts out (e.g. when you trust the plan or want to save the extra MAX agent).
+- **skip recon:** (optional, `--no-explore`) skip **Phase −1** (the `code-explorer` recon pass). Recon is default-on whenever the architect runs; this opts out (e.g. a codebase you already know cold, or to save the extra one-shot agent). It is also auto-skipped when there is no architect (`--no-architect` / trivial task-group) or when `feature-dev` / `code-explorer` is unavailable — see **Phase −1: Recon**.
 - **use Fable for best-model roles:** (optional, `--fable`) resolve the top tier to `model="fable"` (instead of the default `opus`) for every top-tier role — the architect/planner, plan-reviewer, `code-reviewer`, `qa-tester`, and any role derived at HIGH/MAX. MAX roles already run at `effort="max"` with the `Ultrathink` prefix; `--fable` only changes which flagship backs them. Cheaper (`haiku`/`sonnet`) roles are unaffected. Opt-in because Fable is access-gated and pricier — see **Top-tier model**.
 
 ## Read Task-Group Definition
@@ -76,12 +77,32 @@ Read the task-group file (or parse the inline spec). Expected fields:
 
 If required fields (outcome, tasks, acceptance criteria) are missing, ask the user for them before proceeding.
 
+## Phase −1: Recon (code-explorer)
+
+A distilled codebase map lets the MAX-tier architect spend its wave-0 budget on design and composition instead of on discovery, and surfaces coupling, dead code, or workaround chains a quick grep misses. **Default-on** whenever the architect runs — the win is context hygiene for the most expensive reasoner in the engagement, which pays off at every codebase size, not just large repos. It is a transient one-shot, not a wave and not a team member.
+
+**Skip recon** (and go straight to Phase 0) when ANY of:
+
+- `--no-explore` is passed, OR
+- there is no architect to consume the map — `--no-architect` or a trivial task-group (the map's only consumer is Phase 0), OR
+- the `feature-dev` plugin / `code-explorer` agent is unavailable, or its spawn errors — **graceful degrade**: the architect self-recons exactly as it did before this phase existed. `feature-dev` is a *Recommended*, not Required, dependency; never block formation on it.
+
+**Run it** as a transient one-shot — NOT registered as a member, NOT put through the brief-acknowledgement handshake, and it does NOT count against `cost_ceiling` (same shape as the plan-reviewer). It is the pre-built feature-dev agent (its own frontmatter model — recon is low-reasoning, so no MAX pin and no **Explicit-per-role-model** override needed):
+
+`Agent(subagent_type="feature-dev:code-explorer", prompt="{recon prompt}")`
+
+The recon prompt MUST constrain the output to a **distilled map** — the whole benefit is compression, so a raw file tour would *add* tokens instead of saving them:
+
+> Map only the subsystems this task-group touches: {verifiable outcome + task list + tags}. Return a CONCISE structured map (≈ one page): architecture layers, the key modules/files each with a one-line role, entry points, the dependency edges that matter, and any notable patterns, coupling, dead code, or workaround chains a designer must know. Do NOT dump file contents or tour every file — distill.
+
+Hold the returned map in orchestrator context and pass it into the architect's wave-0 prompt (**Phase 0**, step 2). Record the recon outcome (ran, or skipped + reason) as a JSON line in `~/.claude/teams-state/{team-slug}.log.jsonl` once the slug exists.
+
 ## Phase 0: Plan & Compose (Architect/Planner)
 
 The architect/planner runs FIRST, before any other role, and composes the rest of the team. Default-on; skip it only when `--no-architect` is passed or the task-group is trivial (a single mechanical role, ≤2 tasks, no architectural concern) — then go straight to **Derive Roles** and use the cascade.
 
 1. Generate the team slug (`{tg-slug}-t{attempt}`, or `--team-slug` if given) and `TeamCreate(team_name="{team-slug}")`.
-2. Spawn the architect/planner as wave 0 — MAX tier, one call: `Agent(team_name="{team-slug}", name="architect", model="opus", effort="max", prompt="Ultrathink — use maximum thinking.\n{architect/planner disposition block}\n{task-group context}")` (`model="opus"` = the top tier today; with `--fable` it is `model="fable"` instead — see **Top-tier model**. `effort="max"` is pinned on every MAX role. A gated flagship that is unavailable falls back to `opus`.). Store its agent ID.
+2. Spawn the architect/planner as wave 0 — MAX tier, one call: `Agent(team_name="{team-slug}", name="architect", model="opus", effort="max", prompt="Ultrathink — use maximum thinking.\n{architect/planner disposition block}\n{task-group context}\n{recon map from Phase −1, when it ran}")` (`model="opus"` = the top tier today; with `--fable` it is `model="fable"` instead — see **Top-tier model**. `effort="max"` is pinned on every MAX role. A gated flagship that is unavailable falls back to `opus`. Include the recon map only when Phase −1 ran; otherwise the architect self-recons.). Store its agent ID.
 3. Await its reply message — the architect is a persistent teammate, so it `SendMessage`s the lead when done (no synchronous return value); the reply carries the path to its design doc (written to `~/.claude/teams-state/{team-slug}.design.md`) + a **Role Needs table** (the recommended team composition — per role: name, why, scope boundary, model preference). That table is the primary input to **Derive Roles** below (it enters the cascade at Step 2). The architect names the verification roles (a `code-reviewer` always; a `qa-tester` whenever the deliverable is runnable) at MAX tier like itself.
 4. The architect then goes idle and remains the standing design advisor for the rest of the engagement. The **design doc is the durable source of truth** — teammates read it first; the live architect is the *fallback* for novel questions it doesn't answer (see **Build Team Prompts**). Persisting the doc means clarification still works even if the architect cannot be re-woken.
 
@@ -119,7 +140,7 @@ When no historical pattern matches — novel or blended tasks:
 
 1. Analyze task-group dimensions: identify the key concerns, tensions, or specialist capabilities the task requires
 2. Derive one specialist identity per dimension — each role gets a disposition scoped to the specific task, explicit scope boundaries, and success criteria
-3. The inline role disposition blocks below (developer, tech-lead, code-reviewer, qa-tester, architect, automation, copywriter, maintainer, project-manager, product-owner, scorer) are available as bases for derived roles but are not required — derivation can generate fresh identities via inline prompts
+3. The inline role disposition blocks below (developer, frontend-developer, tech-lead, code-reviewer, qa-tester, architect, automation, copywriter, maintainer, project-manager, product-owner, scorer) are available as bases for derived roles but are not required — derivation can generate fresh identities via inline prompts
 4. If derivation fails or times out: proceed to Step 5
 
 ### Step 5: Static defaults (final fallback)
@@ -162,7 +183,7 @@ A bad plan propagates into every wave-1 brief, so the plan is gated by an INDEPE
 
 **Spawn** one plan-reviewer — MAX tier, one-shot (it does NOT persist), independent on both axes: it is NOT the architect (self-review shares the author's blind spots) and NOT the wave-1 `code-reviewer` (which must stay independent to review the implementation later). Inline the **plan-reviewer** disposition block from [`references/role-dispositions.md`](references/role-dispositions.md) — a fixed, non-derivable block dedicated to this gate (it reviews a design doc by hand and does NOT run `/code-review`, unlike the wave-1 `code-reviewer`) — prefixed with the MAX-tier `Ultrathink — use maximum thinking.` and pointed at the plan artifact:
 
-`Agent(team_name="{team-slug}", name="plan-reviewer", model="opus", effort="max", prompt="Ultrathink — use maximum thinking.\n{plan-reviewer disposition block}\n{design doc + sized composition + task-group context}")` (`model="opus"` = the top tier today; with `--fable` it is `model="fable"` — see **Top-tier model**. `effort="max"` is pinned on every MAX role; a gated flagship that is unavailable falls back to `opus`.)
+`Agent(team_name="{team-slug}", name="plan-reviewer", model="opus", effort="max", prompt="Ultrathink — use maximum thinking.\n{plan-reviewer disposition block}\n{design doc + sized composition + task-group context}\n{recon map from Phase −1, when it ran — labeled as the architect's untrusted recon INPUT, for auditing the design against it}")` (`model="opus"` = the top tier today; with `--fable` it is `model="fable"` — see **Top-tier model**. `effort="max"` is pinned on every MAX role; a gated flagship that is unavailable falls back to `opus`. Include the recon map only when Phase −1 ran, and only here among the reviewers — it is NOT broadcast to the wave-1 `code-reviewer`/`qa-tester`/developers, whose single source of truth is the design doc.)
 
 **Loop (bounded — at most 2 REVISE rounds):**
 
@@ -194,7 +215,7 @@ For MAX-tier roles, prefix the prompt with `Ultrathink — use maximum thinking.
 
 ### Role disposition blocks
 
-The 11 reusable disposition blocks — **developer, tech-lead, code-reviewer, qa-tester, architect/planner, automation, copywriter, maintainer, project-manager, product-owner, scorer** — live in [`references/role-dispositions.md`](references/role-dispositions.md), loaded only here at prompt-build time (progressive disclosure). Read `${CLAUDE_PLUGIN_ROOT}/skills/team-forming/references/role-dispositions.md`, take the block matching each derived role, and inline it into the prompt template above — substituting `{team-slug}`, `{architect name}`, and the like. The same file also carries one FIXED, non-derivable block — **plan-reviewer** — which the **Adversarial Plan-Review Gate** spawns directly (not through role derivation); it has its own dedicated block rather than borrowing the `code-reviewer`'s.
+The 12 reusable disposition blocks — **developer, frontend-developer, tech-lead, code-reviewer, qa-tester, architect/planner, automation, copywriter, maintainer, project-manager, product-owner, scorer** — live in [`references/role-dispositions.md`](references/role-dispositions.md), loaded only here at prompt-build time (progressive disclosure). Read `${CLAUDE_PLUGIN_ROOT}/skills/team-forming/references/role-dispositions.md`, take the block matching each derived role, and inline it into the prompt template above — substituting `{team-slug}`, `{architect name}`, and the like. The same file also carries one FIXED, non-derivable block — **plan-reviewer** — which the **Adversarial Plan-Review Gate** spawns directly (not through role derivation); it has its own dedicated block rather than borrowing the `code-reviewer`'s.
 
 For dynamically derived roles (Step 4) with no matching block, write the disposition inline the same way (default `sonnet`; HIGH tier when it calls for multi-step synthesis or adversarial reasoning).
 
@@ -298,5 +319,6 @@ This is not a full re-formation — it is incremental composition within the exi
 - **The architect can't be re-woken for clarification.** Teammates fall back to the design doc at `~/.claude/teams-state/{team-slug}.design.md`, which is the durable source of truth; live consultation is a convenience, not a hard dependency.
 - **`model="opus"` is rejected by the spawn.** The harness's top-tier alias may differ — resolve the top tier to whatever concrete most-capable alias the Agent tool accepts (see **Top-tier model**); never silently omit `model` (that violates the **Explicit-per-role-model mandate**).
 - **A spawned MAX/HIGH agent reports "`<model>` is currently unavailable" (e.g. Fable / Mythos is access-gated).** The top tier was resolved to a *nominal* flagship this account cannot actually spawn, so that agent is dead on arrival — and if it's the wave-0 architect, formation stalls at Phase 0. You **cannot fix this from inside the agent**: its model is fixed at spawn, so telling it to "use opus" can't re-host it, and while it sits on the unavailable model it can't act at all. Fix at the **orchestrator** — re-resolve the top tier to the most capable *accessible* model (`opus`) and **re-spawn** the affected role(s), or tear down and re-run formation (see **Formation Failure & Abort**). To prevent it, treat any `… is currently unavailable` spawn error as a signal to retry that role one tier down (`opus`) and record the downgrade (see **Top-tier model**). When the unavailable model came from `--fable` (an explicit user request), don't silently swallow it: warn the user that Fable was unavailable and the role fell back to `opus`.
-- **`--no-architect` used on a non-trivial task-group.** You lose the plan, the plan-review gate, and the standing advisor; derivation falls to the cascade. Reserve it for genuinely trivial mechanical work.
+- **`--no-architect` used on a non-trivial task-group.** You lose the plan, the plan-review gate, the standing advisor, and the Phase −1 recon (no architect to feed the map); derivation falls to the cascade. Reserve it for genuinely trivial mechanical work.
+- **`feature-dev:code-explorer` unavailable (Phase −1 recon won't spawn).** `feature-dev` is a *Recommended*, not Required, dependency, so this is expected on setups without it. Skip recon and let the architect self-recon — no regression (that is the pre-recon behavior). Treat a spawn error the same way. Never block or fail formation on the recon pass; it is a pure enhancement.
 - **`TeamCreate` unavailable / `team_name` ignored.** Some harnesses use a single implicit team (`team_name` deprecated and ignored, `TeamCreate` a no-op). The skill still works: spawn each member with the `name` param to make it addressable, use the team-slug only for state-file names, and reach members by name via `SendMessage`. (Confirmed in-harness — a named member spawned, idled, and was re-woken with no explicit `TeamCreate`.)
