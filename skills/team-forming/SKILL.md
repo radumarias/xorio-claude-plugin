@@ -1,7 +1,7 @@
 ---
 name: team-forming
-description: 'Team-forming <task-group file or inline spec> [--roles r1,r2,...] [--team-slug S] [--no-architect] [--no-review-plan] [--no-explore] [--fable]. Compose and spawn an agent team for one task-group: an optional recon pass hands a distilled codebase map to a MAX-tier architect/planner that runs first to design the work and recommend the team composition (then stays on as a standing advisor); an independent reviewer gates the plan before the team forms; then derive the remaining roles, build disposition-based prompts, spawn via TeamCreate/Agent, persist a team registry, return the formation contract. Use when the user says "form team", "create team", "compose team", or asks to spawn a team of agents for a task.'
-argument-hint: "<task-group.md|inline spec> [--roles ...] [--team-slug S] [--no-architect] [--no-review-plan] [--no-explore] [--fable]"
+description: 'Team-forming <task-group file or inline spec> [--roles r1,r2,...] [--team-slug S] [--no-architect] [--no-review-plan] [--no-confirm-plan] [--no-explore] [--fable]. Compose and spawn an agent team for one task-group: an optional recon pass hands a distilled codebase map to a MAX-tier architect/planner that runs first to design the work and recommend the team composition (then stays on as a standing advisor); an independent reviewer gates the plan and you approve it (default-on) before the team forms; then derive the remaining roles, build disposition-based prompts, spawn via TeamCreate/Agent, persist a team registry, return the formation contract. Use when the user says "form team", "create team", "compose team", or asks to spawn a team of agents for a task.'
+argument-hint: "<task-group.md|inline spec> [--roles ...] [--team-slug S] [--no-architect] [--no-review-plan] [--no-confirm-plan] [--no-explore] [--fable]"
 allowed-tools: ["Agent", "TeamCreate", "SendMessage", "TaskCreate", "TaskList", "TaskUpdate", "Read", "Write", "Glob", "Grep", "Bash"]
 metadata:
   version: 0.1.0
@@ -60,6 +60,7 @@ Create directories on first write. A missing pattern file is not an error — it
 - **team-slug override:** (optional, `--team-slug`)
 - **skip architect:** (optional, `--no-architect`) skip the Phase 0 architect/planner and derive roles via the cascade instead. Use only for trivial mechanical task-groups (a single pattern-following role, ≤2 tasks, no architectural concern) — for anything non-trivial the planner pays for itself.
 - **skip plan review:** (optional, `--no-review-plan`) skip the **Adversarial Plan-Review Gate**. The gate is default-on whenever the architect ran; this opts out (e.g. when you trust the plan or want to save the extra MAX agent).
+- **skip human plan approval:** (optional, `--no-confirm-plan`) skip the **Human Plan-Approval Checkpoint**. The checkpoint is default-on whenever the architect ran — you review and Approve/Revise/Abort the accepted plan before wave 1; this opts out for fully-autonomous runs (e.g. a milestone-runner forming many teams unattended). Also auto-skipped when there is no architect (`--no-architect` / trivial task-group).
 - **skip recon:** (optional, `--no-explore`) skip **Phase −1** (the `code-explorer` recon pass). Recon is default-on whenever the architect runs; this opts out (e.g. a codebase you already know cold, or to save the extra one-shot agent). It is also auto-skipped when there is no architect (`--no-architect` / trivial task-group) or when `feature-dev` / `code-explorer` is unavailable — see **Phase −1: Recon**.
 - **use Fable for best-model roles:** (optional, `--fable`) resolve the top tier to `model="fable"` (instead of the default `opus`) for every top-tier role — the architect/planner, plan-reviewer, `code-reviewer`, `qa-tester`, and any role derived at HIGH/MAX. MAX roles already run at `effort="max"` with the `Ultrathink` prefix; `--fable` only changes which flagship backs them. Cheaper (`haiku`/`sonnet`) roles are unaffected. Opt-in because Fable is access-gated and pricier — see **Top-tier model**.
 
@@ -187,11 +188,30 @@ A bad plan propagates into every wave-1 brief, so the plan is gated by an INDEPE
 
 **Loop (bounded — at most 2 REVISE rounds):**
 
-1. PASS → proceed to **Build Team Prompts**.
+1. PASS → proceed to the **Human Plan-Approval Checkpoint** (then Build Team Prompts).
 2. REVISE → `SendMessage` the findings to the architect (still alive from Phase 0). It issues a versioned design/composition revision (per its disposition), then re-run **Size Team** + **Validate Formation Output** and re-spawn the plan-reviewer on the revised plan.
 3. Still REVISE after 2 rounds → escalate, do not silently proceed: AskUserQuestion in the main session — *"Plan-reviewer's findings unresolved after 2 rounds. How to proceed?"*, options `Proceed with current plan` / `Revise manually` / `Abort formation`; return `needs_input` with the outstanding findings when running as a subagent.
 
 Log each gate outcome (verdict, round count, findings summary) as a JSON line to `~/.claude/teams-state/{team-slug}.log.jsonl`. The plan-reviewer is one-shot — it is NOT added to the registry's member list.
+
+## Human Plan-Approval Checkpoint
+
+The adversarial gate vets the plan for technical and design soundness; this is the *human's* sign-off on direction, scope, and composition before the team forms. **Default-on whenever the architect ran** — so the plan you approve is the one that already passed (or skipped) the adversarial gate. Skipped when `--no-confirm-plan` is set, or when there is no architect (`--no-architect` / trivial task-group — no design doc to review). If the gate already escalated to you (2-round non-convergence) and you chose *Proceed with current plan*, that already counts as approval — do not prompt again here.
+
+**Present the accepted plan** and ask for a decision:
+
+- Point at the full design doc: `~/.claude/teams-state/{team-slug}.design.md`.
+- Summarize inline: the verifiable outcome; the composition (each role → model tier → scope boundary); the gate verdict + round count (or "gate skipped"); the scaling envelope (min/max members, `cost_ceiling`); whether Phase −1 recon ran.
+- **Main session:** `AskUserQuestion` — *"Plan is ready and passed review. Approve and form the team, revise it first, or abort?"*, options `Approve` / `Revise` / `Abort`.
+- **As a subagent (non-interactive):** return `needs_input` with the design-doc path + the summary so the parent (or the human above it) decides. Do NOT spawn wave 1 on an unconfirmed plan.
+
+**On the decision:**
+
+1. **Approve** → proceed to **Build Team Prompts**.
+2. **Revise** → collect the user's change request and `SendMessage` it to the architect (still alive from Phase 0); it issues a versioned design/composition revision (per its disposition). Re-run **Size Team** + **Validate Formation Output**; re-run the **Adversarial Plan-Review Gate** when the revision is design-level (skip the re-gate for a pure composition tweak like dropping one role, and whenever `--no-review-plan` is set). Then re-present this checkpoint. Loop until Approve or Abort — the human bounds it, so there is no fixed round cap.
+3. **Abort** → run the **Formation Failure & Abort** teardown.
+
+Log the approval outcome (approved / revised-N-times / aborted) as a JSON line to `~/.claude/teams-state/{team-slug}.log.jsonl`.
 
 ## Build Team Prompts
 
@@ -305,6 +325,7 @@ This is not a full re-formation — it is incremental composition within the exi
 
 - Architect/planner spawned first and confirmed as standing advisor (unless `--no-architect` / trivial task-group)
 - Plan cleared the **Adversarial Plan-Review Gate** (or the gate was skipped via `--no-review-plan` / no architect, or its escalation was resolved by the user)
+- Plan approved by the human at the **Human Plan-Approval Checkpoint** (or the checkpoint was skipped via `--no-confirm-plan` / no architect, or approval was returned as `needs_input` when running as a subagent)
 - All members spawned and acknowledged their briefs (the handshake in **Spawn Team**), or an unacknowledged member was escalated
 - Team registered at `~/.claude/teams-state/{team-slug}.json`
 - Formation output contract validated
