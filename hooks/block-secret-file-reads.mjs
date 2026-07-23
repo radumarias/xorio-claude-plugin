@@ -1,25 +1,30 @@
 #!/usr/bin/env node
-// PreToolUse(Bash|Read) guard: block reads of secret / private-data files.
+// PreToolUse(Bash|Read|Grep) guard: block reads of secret / private-data files.
 //
 // This is the plugin-shipped copy of the maintainer's personal ~/.claude guard.
 // On a personal machine the *tool* vector (the Read tool) is covered
 // declaratively by `permissions.deny` in settings.json — but a plugin CANNOT
 // ship permission rules (a plugin's settings.json only honors `agent` /
 // `subagentStatusLine`; a `permissions` key is silently ignored). So, to give
-// plugin consumers the same protection, this one hook covers BOTH vectors via a
-// `"Bash|Read"` matcher in hooks.json:
+// plugin consumers the same protection, this one hook covers all three
+// content-reading vectors via a `"Bash|Read|Grep"` matcher in hooks.json:
 //   - Bash — shell commands that read secrets: `cat .env`, `source .env`,
 //     `grep X .env.production`, `openssl rsa -in server.key`
 //     (inspects `tool_input.command`).
 //   - Read — the Read tool pointed at a protected file
 //     (inspects `tool_input.file_path`).
+//   - Grep — the Grep tool with `output_mode: "content"` returns matching file
+//     *lines*, so a Grep aimed at a protected file leaks it just like a Read.
+//     Inspects the path-like fields `tool_input.path` and `tool_input.glob`
+//     (never `pattern`, a search regex — grepping the tree for the literal
+//     text ".env" is legitimate and must stay allowed).
 // Placeholder templates (`*.example`) stay allowed so Claude can still learn
 // what config exists.
 //
 // Contract: reads the PreToolUse event JSON on stdin, picks the command string
-// (Bash) or file path (Read) out of `tool_input`, and prints a PreToolUse
-// "deny" decision when it references a protected file. Anything else → exit
-// silently (allow).
+// (Bash), file path (Read), or path/glob (Grep) out of `tool_input`, and prints
+// a PreToolUse "deny" decision when it references a protected file. Anything
+// else → exit silently (allow).
 //
 // Quoted strings in a Bash command are stripped before matching, so commands
 // that merely *mention* a secret filename in a message (e.g.
@@ -84,18 +89,18 @@ const RULES = [
   { label: "credentials file", re: /(?<![\w-])(?:credentials|\.pgpass|\.netrc)(?![\w])/i },
 ];
 
-const toolInput = await readStdin()
-  .then((raw) => {
-    try {
-      return JSON.parse(raw || "{}");
-    } catch {
-      return {};
-    }
-  })
-  .then((evt) => evt?.tool_input ?? {});
+const evt = await readStdin().then((raw) => {
+  try {
+    return JSON.parse(raw || "{}");
+  } catch {
+    return {};
+  }
+});
+const toolName = typeof evt?.tool_name === "string" ? evt.tool_name : "";
+const toolInput = evt?.tool_input ?? {};
 
-// Bash → scan the command string; Read → scan the file path. Whichever the
-// event carries.
+// Bash → scan the command string; Read → scan the file path; Grep → scan the
+// path-like fields. Whichever the event carries.
 let scan = "";
 if (typeof toolInput.command === "string") {
   // Remove single- and double-quoted segments so quoted text (commit messages,
@@ -104,6 +109,14 @@ if (typeof toolInput.command === "string") {
 } else if (typeof toolInput.file_path === "string") {
   // A Read file_path is a single literal path — no shell quoting to strip.
   scan = toolInput.file_path;
+} else if (toolName === "Grep") {
+  // Grep with output_mode "content" returns file *contents*, so a Grep pointed
+  // at a protected file (`path`) or filtered onto one (`glob`) would leak it
+  // straight past the Bash/Read guard. Inspect only these path-like fields —
+  // never `pattern`, which is the search regex.
+  scan = [toolInput.path, toolInput.glob]
+    .filter((v) => typeof v === "string")
+    .join(" ");
 }
 
 if (scan) {
