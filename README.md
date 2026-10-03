@@ -129,15 +129,24 @@ Note: `tests`, `polish`, and `review` also exist as command files (`commands/*.m
 > [!NOTE]
 > Installing this plugin adds a hook that **inspects every `Bash` and `Read` call** in your session and denies the ones that would read a secret file. It's a deny-only guard — it never reads file contents, never phones home, and lets everything else through (quoted strings, e.g. commit messages that merely *mention* `.env`, are ignored). Matching is by filename, so a *source* file named like a secret (e.g. `credentials.ts`, `foo.key`) is also blocked — edit `RULES` in the hook if you need such names readable. If you already run your own secret guard, both fire harmlessly (both just deny). Requires `node` on `PATH`.
 
+## Mods
+
+[Claude Code mods](https://claude.dev/blog/getting-started-with-claude-code-mods/) ship as separate plugins under [`mods/`](mods/), listed in this repo's marketplace:
+
+| Mod | Command | What it does |
+|-----|---------|--------------|
+| [`md-viewer`](mods/md-viewer/) | `/md [file \| folder \| --plan] [--full \| --half]` | Renders any Markdown file in a side pane, the way Claude Code draws a plan. Has a file picker (Project / Plans / Home / Recent, plus a filter that also takes a path), live reload while the file changes, and in-place links to other `.md` files. Opens on the right half of the screen, with a full-screen toggle (`f`). |
+
 ## Installation
 
 ### From the marketplace (recommended)
 
-This repo doubles as a single-plugin marketplace. Add it, then install:
+This repo doubles as a marketplace. Add it, then install:
 
 ```
 /plugin marketplace add radumarias/xorio-claude-plugin
 /plugin install xorio@xorio
+/plugin install md-viewer@xorio   # optional: the Markdown viewer mod
 ```
 
 ### Local checkout (development)

@@ -1,0 +1,13 @@
+{
+  "name": "md-viewer",
+  "version": "0.1.0",
+  "description": "Render any Markdown file in a side pane (as Claude Code draws a plan), with a file picker and a full-screen toggle",
+  "author": {
+    "name": "Radu Marias",
+    "url": "https://github.com/radumarias"
+  },
+  "repository": "https://github.com/radumarias/xorio-claude-plugin",
+  "license": "MIT",
+  "keywords": ["mod", "markdown", "viewer", "plans"],
+  "types": "./types/index.d.ts"
+}

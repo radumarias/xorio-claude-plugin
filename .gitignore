@@ -5,3 +5,6 @@ Thumbs.db
 *~
 .claude/*.local.md
 .claude/settings.local.json
+
+# Type declarations Claude Code writes beside a mod each time it loads one
+mods/*/.claude-plugin/types/

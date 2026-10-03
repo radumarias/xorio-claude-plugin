@@ -14,6 +14,12 @@
       "source": "./",
       "description": "xorio development toolkit — dev workflows, testing, cleanup, polish, review, security",
       "version": "0.1.0"
+    },
+    {
+      "name": "md-viewer",
+      "source": "./mods/md-viewer",
+      "description": "Claude Code mod: /md renders any Markdown file in a side pane (as Claude Code draws a plan), with a file picker and a full-screen toggle",
+      "version": "0.1.0"
     }
   ]
 }
