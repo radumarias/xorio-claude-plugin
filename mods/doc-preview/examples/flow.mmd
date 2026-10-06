@@ -1,0 +1,16 @@
+---
+title: How doc-preview handles /xorio:preview
+---
+flowchart TD
+  A["/xorio:preview [path]"] --> B{path given?}
+  B -- no --> P[File picker]
+  B -- yes --> C{exists?}
+  C -- no --> N["Not found: path"]
+  C -- folder --> P
+  C -- file --> D{.md / .mmd?}
+  D -- no --> R[Refused]
+  D -- yes --> V[Preview pane]
+  P -- pick a file --> V
+  V -- b --> W[Browser page]
+  V -- w / n / z --> S[Resize]
+  V -- q --> X[Closed]

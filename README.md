@@ -23,6 +23,7 @@ Supports **Rust**, **TypeScript**, and **Python**, with framework-specific stand
 | `/xorio:check-deps` | Verify required external plugins and MCP servers are installed |
 | `/xorio:review-pr` | Ultracode multi-agent PR review — multi-lens findings, adversarial validation, verified fixes, looped to convergence |
 | `/xorio:review-pr-mythos` | All-Fable variant of `review-pr` — every agent on Fable with max thinking |
+| `/xorio:preview [path]` | Preview Markdown and Mermaid in a side panel; no path opens a file picker. Needs the [doc-preview](#mods) mod |
 
 Skills are slash commands too — every skill is invocable as `/xorio:<skill-name>`; see [Components](#components) for the full table with arguments and auto-trigger behavior.
 
@@ -129,15 +130,24 @@ Note: `tests`, `polish`, and `review` also exist as command files (`commands/*.m
 > [!NOTE]
 > Installing this plugin adds a hook that **inspects every `Bash` and `Read` call** in your session and denies the ones that would read a secret file. It's a deny-only guard — it never reads file contents, never phones home, and lets everything else through (quoted strings, e.g. commit messages that merely *mention* `.env`, are ignored). Matching is by filename, so a *source* file named like a secret (e.g. `credentials.ts`, `foo.key`) is also blocked — edit `RULES` in the hook if you need such names readable. If you already run your own secret guard, both fire harmlessly (both just deny). Requires `node` on `PATH`.
 
+## Mods
+
+Mods are plugins built on Claude Code's function-hooks API (early access). They live under `mods/` and install separately from xorio.
+
+| Mod | Install | Purpose |
+|-----|---------|---------|
+| [`doc-preview`](mods/doc-preview/README.md) | `/plugin install doc-preview@xorio` | Preview Markdown and Mermaid in a side panel: `/xorio:preview [path]` with a file picker, plus a one-key band for the docs, plans and diagrams Claude writes. Diagrams render in the browser, or inline with `mermaid-ascii` / `mmdc` installed |
+
 ## Installation
 
 ### From the marketplace (recommended)
 
-This repo doubles as a single-plugin marketplace. Add it, then install:
+This repo doubles as a marketplace. Add it, then install xorio and, optionally, the [doc-preview](#mods) mod:
 
 ```
 /plugin marketplace add radumarias/xorio-claude-plugin
 /plugin install xorio@xorio
+/plugin install doc-preview@xorio
 ```
 
 ### Local checkout (development)
@@ -149,7 +159,7 @@ git clone git@github.com:radumarias/xorio-claude-plugin.git
 claude --plugin-dir /path/to/xorio-claude-plugin
 ```
 
-`--plugin-dir` reads live from the directory (it accepts a single plugin dir or `.zip`, and can be repeated to load several plugins). After editing files: **skills** reload immediately, while **commands, agents, hooks, and MCP/LSP config** need `/reload-plugins` (or a session restart) to take effect.
+Add `--plugin-dir /path/to/xorio-claude-plugin/mods/doc-preview` to load the mod too. `--plugin-dir` reads live from the directory (it accepts a single plugin dir or `.zip`, and can be repeated to load several plugins). After editing files: **skills** reload immediately, while **commands, agents, hooks, and MCP/LSP config** need `/reload-plugins` (or a session restart) to take effect.
 
 > Don't use `/plugin marketplace add <local-path>` for development — installing from a local marketplace caches the plugin under `~/.claude/plugins/`, so source edits are not reflected. Use `--plugin-dir` instead.
 
