@@ -10,15 +10,16 @@ A Claude Code plugin (`xorio`) providing development workflows: test generation,
 
 ```
 .claude-plugin/plugin.json       ← plugin manifest (name, version, metadata)
-.claude-plugin/marketplace.json  ← single-plugin marketplace manifest (repo self-installs via /plugin marketplace add)
+.claude-plugin/marketplace.json  ← marketplace manifest: xorio (source ./) + the mods under mods/ (repo self-installs via /plugin marketplace add)
 agents/                          ← autonomous subagents (launched via Task tool)
 commands/                        ← slash commands (/xorio:tests, /xorio:polish, etc.)
 hooks/                           ← hooks.json (SessionStart context injection + PreToolUse secret-file guard) + block-secret-file-reads.mjs
+mods/                            ← separate plugins built on the function-hooks API (mods), each its own marketplace entry
 rules/                           ← injected context: design principles (planning.md), tool usage guide (tools.md)
 skills/                          ← skill workflows (SKILL.md + references/ for standards)
 ```
 
-The repo doubles as a single-plugin marketplace: `marketplace.json` lets users `/plugin marketplace add radumarias/xorio-claude-plugin` then `/plugin install xorio@xorio`. For local development use `--plugin-dir` instead (see [Installation for Development](#installation-for-development)).
+The repo doubles as a marketplace: `marketplace.json` lets users `/plugin marketplace add radumarias/xorio-claude-plugin` then `/plugin install xorio@xorio`, and optionally `/plugin install doc-preview@xorio`. For local development use `--plugin-dir` instead (see [Installation for Development](#installation-for-development)).
 
 ### Component Relationships
 
@@ -44,6 +45,7 @@ Standalone commands (not part of larger pipelines):
 - `/xorio:root-cause` — evidence-grounded 5 Whys root cause analysis (grounds each causal link in git/grep/repro evidence; `--deep` adds a multi-agent causal-tree investigation via the Workflow tool)
 - `/xorio:review-pr` — ultracode multi-agent PR review (multi-lens findings, adversarial validation, verified fixes, looped to convergence); the opt-in `--fable` flag runs the best-model (STRONG-tier) agents on Fable at max effort — the surgical middle ground between the default (mixed tiers) and `review-pr-mythos` (all-Fable)
 - `/xorio:review-pr-mythos` — all-Fable variant of `review-pr` (every agent on Fable with max thinking)
+- `/xorio:preview` — Markdown/Mermaid preview pane; answered by the `doc-preview` mod (see [Mods](#mods-mods)), the command file itself only tells the user how to install the mod
 
 Standalone skills (directly invocable, not orchestrated by a command):
 - `brainstorm` / `brainstorm-mythos` — multi-agent ideation fan-out via the Workflow tool; the orchestration script is `workflow.js` next to each SKILL.md, launched via `scriptPath: "${CLAUDE_PLUGIN_ROOT}/skills/{name}/workflow.js"`. `brainstorm` mixes model tiers (the opt-in `--fable` flag pins the STRONG tier to Fable at max effort — the best-model agents only, cheaper than all-Fable); `brainstorm-mythos` runs every agent on Fable with max thinking. Both `--fable` flags (here and on `review-pr`) mirror the `team-forming` `--fable` logic: upgrade only the strongest-tier agents to Fable, leaving cheaper tiers untouched.
@@ -90,6 +92,21 @@ Conventions:
 
   On a personal machine the Read vector is normally handled by a declarative `permissions.deny` in `~/.claude/settings.json`, but **a plugin cannot ship permission rules** — a plugin's `settings.json` only honors `agent` / `subagentStatusLine`, and a `permissions` key is silently ignored. Hence the hook covers Read directly so plugin consumers inherit the protection. This script is a (superset) copy of the maintainer's personal `~/.claude/hooks/` guard; both fire harmlessly if a user already runs their own. Caveat: matching is by filename, so a source file named like a secret (e.g. `credentials.ts`) is also denied — consistent with the Bash behavior; narrow `RULES` if needed.
 
+### Mods (`mods/`)
+
+Each folder under `mods/` is a separate plugin with its own `.claude-plugin/plugin.json` and its own `marketplace.json` entry (`"source": "./mods/<name>"`). They are written as **mods**: `hooks/hooks.json` names one TypeScript hooks module (`{ "modules": ["./register.tsx"] }`) that exports `register(on)` and runs on Claude Code's function-hooks API (early access, no DOM or Node; everything goes through `$`). The xorio plugin never loads them: it only reads its own root folders.
+
+- `doc-preview` — `/xorio:preview [path]` (file picker without a path), a pane that renders Markdown and Mermaid, and a band above the prompt offering the `.md`/`.mmd` files Claude writes (Write/Edit `tool.call` hooks) and the ```` ```mermaid ```` blocks in its replies (`session.append` hook). Inline diagrams use `mermaid-ascii` or `mmdc` when installed; "open in browser" writes a self-contained page to `~/.cache/claude-doc-preview/`. See `mods/doc-preview/README.md`.
+
+A mod's slash command can't carry the `xorio:` namespace: `$.command.register` names have no colon and run as `/<name>`. So `/xorio:preview` is a command file in xorio (`commands/preview.md`), and the mod hooks `command.run` for `xorio:preview` and answers without `next`, so the file's text never reaches the model. The text only runs when the mod is absent, and tells the user how to install it. Without xorio's command, the mod registers a plain `/preview` fallback at session start.
+
+Conventions:
+- A function that receives `$` must be declared at the top of the hooks module (a function declaration or a const bound to one); the engine refuses to load a module that passes `$` to a closure defined inside `register`.
+- `$.state` values are declared in the mod's `types/index.d.ts` and named in `plugin.json` as `"types"`; pure helpers live apart from the hooks module (`hooks/docs.ts`) so tests reach them without `$`.
+- Hooks that wrap `next(e)` on `tool.call` / `session.append` get `.catch(($, e, next) => next(e))`: in a catch handler `next` is replay-safe, so a failing mod never blocks or re-runs a tool.
+- Tests are `tests/*.test.tsx`, run by `claude plugin test mods/<name>`. Use `.tsx` even without JSX: the repo's bare `node --test` (the hook guard's suite) also runs `*.test.ts` files and would fail on them.
+- `.claude-plugin/types/` inside a mod is written by Claude Code on every load (API declarations + the `tsconfig.json` the mod's own extends) and ignores itself; don't commit or edit it.
+
 ## Development Workflow
 
 To test changes, edit files directly and restart your Claude Code session. No build step required.
@@ -119,6 +136,9 @@ claude --plugin-dir /path/to/xorio-claude-plugin
 | Skills (`SKILL.md`) | immediate (hot-reloaded) |
 | Commands, agents | `/reload-plugins` |
 | Hooks (`hooks.json`), MCP/LSP config | `/reload-plugins` or session restart |
+| A mod's hooks module (`mods/<name>/hooks/*`) | automatic on save (the folder is watched) |
+
+Load a mod alongside with a second flag, `--plugin-dir /path/to/xorio-claude-plugin/mods/doc-preview`, and check it with `claude plugin validate mods/doc-preview` and `claude plugin test mods/doc-preview`. Once it has loaded, `tsc -p mods/doc-preview` type-checks it.
 
 Do **not** use `/plugin marketplace add <local-path>` for development — installing from a local marketplace caches the plugin under `~/.claude/plugins/`, so source edits are not reflected. That path is for testing distribution only.
 

@@ -1,0 +1,13 @@
+{
+  "name": "doc-preview",
+  "version": "0.1.0",
+  "description": "Preview Markdown and Mermaid: /xorio:preview [path] with a file picker, and one-key previews of the docs and diagrams Claude writes",
+  "author": {
+    "name": "Radu Marias",
+    "url": "https://github.com/radumarias"
+  },
+  "repository": "https://github.com/radumarias/xorio-claude-plugin",
+  "license": "MIT",
+  "keywords": ["markdown", "mermaid", "preview", "mod"],
+  "types": "./types/index.d.ts"
+}
