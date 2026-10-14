@@ -64,7 +64,7 @@ Print the overview table and a context-based recommendation.
 | 7 | Root Cause | 5 Whys analysis — trace a problem to its root cause | `/xorio:root-cause` |
 | 8 | Check Deps | Verify required plugins and MCP servers are installed | `/xorio:check-deps` |
 | 9 | Review PR | Deep multi-agent PR review — adversarial validation, verified fixes, looped to convergence | `/xorio:review-pr` |
-| 10 | Malware Check | Recursive scan for malware, obfuscation, call-home, prompt injection | `/xorio:mallware-check` |
+| 10 | Malware Check | Recursive scan for malware, obfuscation, call-home, prompt injection, hidden/dormant loaders | `/xorio:mallware-check` |
 | 11 | Brainstorm | Multi-agent ideation — ideate across lenses → refute → debate → ranked report | `/xorio:brainstorm` |
 | 12 | Review Loop | Multi-round audit loop — finders → adversarial verify → fix → repeat until dry | `/xorio:review-loop` |
 | 13 | Team Forming | Compose & spawn an agent team for a task-group — architect plans + composes → plan-review gate → verification roles | `/xorio:team-forming` |
@@ -289,9 +289,11 @@ If confirmed, run `/xorio:review-pr` with the chosen target.
 
 Recursively scans the current directory for threats:
 
-1. Dispatches three STRONG-tier agents in parallel
-2. Each scans all files for malicious code, obfuscation, call-home behavior, prompt-injection payloads, and Claude Code plugin threats
+1. Dispatches four STRONG-tier agents in parallel (read-only — nothing in the target is executed)
+2. Each scans all files through its own lens — malicious code & obfuscation, call-home & persistence, Claude Code plugin threats & prompt injection, and hidden/dormant loaders
 3. Compiles a consolidated risk report
+
+Tip (mention it): for an untrusted clone, start Claude Code in a *parent* directory of the clone, not inside it — the cwd's `.claude/` config and `CLAUDE.md` are loaded as session config, and the scan recurses into subfolders anyway; use a VM with no credentials, and don't install or open the project in an IDE until the verdict is in.
 
 Ask: **Start now?**
 

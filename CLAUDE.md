@@ -41,7 +41,7 @@ Use `/xorio:check-deps` to verify all required external plugins and MCP servers 
 
 Standalone commands (not part of larger pipelines):
 - `/xorio:commit-message` — generates a git commit message from staged + unstaged changes
-- `/xorio:mallware-check` — recursive malware/obfuscation/prompt-injection scan of cwd
+- `/xorio:mallware-check` — recursive malware/obfuscation/prompt-injection scan of cwd via four parallel STRONG-tier agents (the fourth hunts hidden/dormant loaders); strictly read-only, nothing in the target is executed; scan an untrusted clone from a *parent* directory so the clone's `.claude/` config and `CLAUDE.md` are not loaded as the session's own (the scan recurses anyway)
 - `/xorio:root-cause` — evidence-grounded 5 Whys root cause analysis (grounds each causal link in git/grep/repro evidence; `--deep` adds a multi-agent causal-tree investigation via the Workflow tool)
 - `/xorio:review-pr` — ultracode multi-agent PR review (multi-lens findings, adversarial validation, verified fixes, looped to convergence); the opt-in `--fable` flag runs the best-model (STRONG-tier) agents on Fable at max effort — the surgical middle ground between the default (mixed tiers) and `review-pr-mythos` (all-Fable)
 - `/xorio:review-pr-mythos` — all-Fable variant of `review-pr` (every agent on Fable with max thinking)

@@ -366,7 +366,7 @@ Vet untrusted code (a cloned repo, a dependency, a plugin) before you run or tru
 /xorio:mallware-check is the postinstall script safe?   # add a question to focus the report
 ```
 
-Dispatches **three** STRONG-tier agents in parallel, each with maximum thinking, to scan
+Dispatches **four** STRONG-tier agents in parallel, each with maximum thinking, to scan
 every file recursively for:
 
 - **malicious code & obfuscation** — dynamic `eval`/`exec`, encoded payloads, reverse
@@ -375,10 +375,24 @@ every file recursively for:
   destructive commands, supply-chain install hooks (`preinstall`/`postinstall`, CI
   secrets);
 - **Claude Code plugin threats & prompt injection** — malicious hooks/MCP configs,
-  hidden instructions in markdown, zero-width/RTL-override tricks.
+  hidden instructions in markdown, zero-width/RTL-override tricks;
+- **hidden & dormant payloads** — code hidden after long whitespace runs or behind
+  carriage returns / invisible characters, "font" files that are really JavaScript,
+  IDE and tool configs that auto-run on folder open or `npm start`, fetch-and-eval
+  loaders (incl. blockchain-RPC dead drops), and force-pushed history rewrites.
 
 It returns a consolidated report with a **SAFE / SUSPICIOUS / DANGEROUS** verdict and a
-clear recommendation.
+clear recommendation, plus containment steps when DANGEROUS. The scan itself never
+runs anything in the target — nor should you, until the verdict is in.
+
+> [!IMPORTANT]
+> **Scanning an untrusted clone?** Start Claude Code in a *parent* directory of the clone,
+> not inside it. Claude Code loads the cwd's `.claude/settings*.json` (hooks, permissions),
+> `.mcp.json` and `CLAUDE.md` as the session's own configuration, so a hostile repo as cwd
+> runs its hooks and plants its instructions before the scan even starts. The scan recurses
+> into subfolders, so the clone is still fully covered. And until the verdict is in: use a VM
+> or container with no credentials, and do not `npm install`, build, or open the folder in an
+> IDE (`.vscode/tasks.json` can auto-run on folder open).
 
 > [!NOTE]
 > The command is spelled **`mallware-check`** (double-L) — that's the real command name,

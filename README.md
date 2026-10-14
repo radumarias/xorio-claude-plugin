@@ -18,7 +18,7 @@ Supports **Rust**, **TypeScript**, and **Python**, with framework-specific stand
 | `/xorio:polish` | Simplify → clean up → review → security-audit your local changes |
 | `/xorio:review` | Multi-agent PR review with code review and simplification passes |
 | `/xorio:commit-message` | Generate a Conventional Commits message from staged + unstaged changes (does not commit) |
-| `/xorio:mallware-check` | Recursive scan for malware, obfuscation, call-home, prompt injection, plugin threats |
+| `/xorio:mallware-check` | Recursive scan for malware, obfuscation, call-home, prompt injection, plugin threats, hidden/dormant loaders |
 | `/xorio:root-cause` | Evidence-grounded 5 Whys root-cause analysis (`--deep` for a multi-agent causal-tree investigation) |
 | `/xorio:check-deps` | Verify required external plugins and MCP servers are installed |
 | `/xorio:review-pr` | Ultracode multi-agent PR review — multi-lens findings, adversarial validation, verified fixes, looped to convergence |
@@ -86,7 +86,7 @@ Reads staged + unstaged diff and current branch, drafts a Conventional Commits m
 
 ### `/xorio:mallware-check`
 
-Dispatches three STRONG-tier agents (the most capable Claude model available, resolved at runtime) in parallel to scan the cwd for malicious code, obfuscation, call-home behavior, prompt-injection payloads, and Claude Code plugin threats. Returns a consolidated risk report.
+Dispatches four STRONG-tier agents (the most capable Claude model available, resolved at runtime) in parallel to scan the cwd for malicious code, obfuscation, call-home behavior, prompt-injection payloads, Claude Code plugin threats, and hidden/dormant loaders. Strictly read-only — nothing in the target is executed. Returns a consolidated risk report; see [Check for malware](docs/usage-examples.md#check-for-malware) for the breakdown. Scanning an untrusted clone? Start Claude Code in a **parent directory** of the clone, not inside it — the cwd's `.claude/` settings, hooks and `CLAUDE.md` are loaded as the session's own config, while the scan recurses into subfolders anyway — and use a VM with no credentials, without installing or opening the project in an IDE until the verdict is in.
 
 ### `/xorio:root-cause "<problem>"`
 
