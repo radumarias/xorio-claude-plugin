@@ -1,6 +1,6 @@
 // Pure helpers: no `$`, so the tests exercise them directly.
 
-import type { Rasterizer, Renderers } from '../types'
+import type { Rasterizer, Renderers, Scheme } from '../types'
 import { render as peleRender } from './vendor/pele.js'
 
 export const PANE = 'doc-preview'
@@ -744,16 +744,46 @@ export function formatFor(surface: string, renderers: Renderers | null): InlineF
 /** The pele build vendored in `vendor/pele.js`; cached drawings are named with it. */
 export const PELE_VERSION = '1.6.0'
 
-/** Pele's palette (its light defaults); the drawing is flattened to these, on a white ground like mmdc's. */
-const PELE_THEME: Record<string, string> = {
-  bg: '#ffffff',
-  fg: '#1f1f1f',
-  muted: '#6e6e6e',
-  line: '#1f1f1f',
-  surface: '#f3f3f3',
-  'surface-alt': '#e6e6e6',
-  border: '#8a8a8a',
-  accent: '#5b7bd5',
+/** Pele's palette per scheme: light is its own defaults, dark the browser page's (GitHub dark). */
+/** Pele's `--pele-*` colors, by the name after the prefix. */
+type Palette = Record<'bg' | 'fg' | 'muted' | 'line' | 'surface' | 'surface-alt' | 'border' | 'accent', string>
+
+export const PELE_THEMES: Record<Scheme, Palette> = {
+  light: {
+    bg: '#ffffff',
+    fg: '#1f1f1f',
+    muted: '#6e6e6e',
+    line: '#1f1f1f',
+    surface: '#f3f3f3',
+    'surface-alt': '#e6e6e6',
+    border: '#8a8a8a',
+    accent: '#5b7bd5',
+  },
+  dark: {
+    bg: '#0d1117',
+    fg: '#e6edf3',
+    muted: '#9198a1',
+    line: '#d1d9e0',
+    surface: '#151b23',
+    'surface-alt': '#212830',
+    border: '#3d444d',
+    accent: '#4493f8',
+  },
+}
+
+/**
+ * Light or dark, from Claude Code's `theme` setting (`dark`, `light-ansi`,
+ * `dark-daltonized`, …). `auto` and custom themes follow the terminal's
+ * `COLORFGBG` (`fg;bg`, a background of 7 or 15 is light), else dark.
+ */
+export function schemeFor(theme: unknown, colorfgbg: string | undefined): Scheme {
+  if (typeof theme === 'string') {
+    if (theme.startsWith('light')) return 'light'
+    if (theme.startsWith('dark')) return 'dark'
+  }
+  const bg = Number(colorfgbg?.split(';').pop())
+
+  return bg === 7 || bg === 15 ? 'light' : 'dark'
 }
 
 /**
@@ -761,7 +791,7 @@ const PELE_THEME: Record<string, string> = {
  * `--_x: var(--pele-x, fallback)` on the root and `var(--_x)` below, which
  * resvg and librsvg don't follow and an image's host page can't set anyway.
  */
-export function flattenPeleSvg(svg: string, theme: Record<string, string> = PELE_THEME): string {
+export function flattenPeleSvg(svg: string, theme: Partial<Record<string, string>> = PELE_THEMES.light): string {
   const local = new Map<string, string>()
   const declared = svg.replace(/--(_[\w-]+):var\(--pele-([\w-]+),([^)]*)\);?/g, (_, name: string, key: string, fallback: string) => {
     local.set(name, theme[key] ?? fallback)
@@ -780,13 +810,35 @@ export function flattenPeleSvg(svg: string, theme: Record<string, string> = PELE
  */
 const PELE_FONTS = "Helvetica, Arial, 'Segoe UI', 'DejaVu Sans', 'Liberation Sans', 'Noto Sans', sans-serif"
 
-/** A Mermaid diagram as a standalone SVG by pele, on a white ground; throws on syntax pele can't read. */
-export function peleSvg(source: string): string {
-  const svg = flattenPeleSvg(peleRender(source, { fontFamily: PELE_FONTS, links: false, images: false }).svg)
+const drawPele = (source: string): string =>
+  peleRender(source, { fontFamily: PELE_FONTS, links: false, images: false })
     // The initial values, which resvg warns it can't parse.
-    .replace(/(letter|word)-spacing:normal;?/g, '')
-  // Painted first, so it sits under the drawing.
-  return svg.replace(/^(<svg\b[^>]*>)/, `$1<rect width="100%" height="100%" fill="${PELE_THEME.bg}"/>`)
+    .svg.replace(/(letter|word)-spacing:normal;?/g, '')
+
+/** A ground painted first, so it sits under the drawing. */
+const withGround = (svg: string, fill: string): string =>
+  svg.replace(/^(<svg\b[^>]*>)/, `$1<rect width="100%" height="100%" fill="${fill}"/>`)
+
+/**
+ * A Mermaid diagram as a standalone SVG by pele in one scheme's colors, its
+ * variables resolved, for a rasterizer; throws on syntax pele can't read.
+ */
+export function peleSvg(source: string, scheme: Scheme): string {
+  return withGround(flattenPeleSvg(drawPele(source), PELE_THEMES[scheme]), PELE_THEMES[scheme].bg)
+}
+
+/**
+ * The same, for a surface that shows SVG (desktop, VS Code): light colors,
+ * turned dark by a `prefers-color-scheme` rule, so the image follows the
+ * app's own theme as it changes; throws on syntax pele can't read.
+ */
+export function peleSvgAdaptive(source: string): string {
+  const dark = Object.entries(PELE_THEMES.dark)
+    .map(([key, value]) => `--pele-${key}:${value}`)
+    .join(';')
+  const style = `<style>@media (prefers-color-scheme: dark){svg{${dark}}}</style>`
+
+  return withGround(drawPele(source), 'var(--_bg)').replace(/^(<svg\b[^>]*>)/, `$1${style}`)
 }
 
 /** The command that turns an SVG file into a PNG at twice its size, by the rasterizer found. */

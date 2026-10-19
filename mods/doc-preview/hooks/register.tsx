@@ -1,5 +1,6 @@
 import { atom, read, update } from 'claude-code'
 import type {
+  ConfigValue,
   ElementTable,
   EngineInterface,
   Register,
@@ -10,10 +11,11 @@ import type {
   Timer,
 } from 'claude-code'
 
-import type { DiagramRender, DocView, GeneratedDoc, PaneSize, Rasterizer, Renderers, ReplyDiagram } from '../types'
+import type { DiagramRender, DocView, GeneratedDoc, PaneSize, Rasterizer, Renderers, ReplyDiagram, Scheme } from '../types'
 import {
   MAX_SVG,
   PANE,
+  PELE_THEMES,
   PELE_VERSION,
   asciiSource,
   baseName,
@@ -35,11 +37,13 @@ import {
   newestFirst,
   parentDir,
   peleSvg,
+  peleSvgAdaptive,
   pngSize,
   previewHtml,
   rasterArgv,
   renderKey,
   rendererError,
+  schemeFor,
   splitDoc,
   stripAnsi,
   tableAsList,
@@ -325,38 +329,44 @@ const failed = (tool: string, ran: { exitCode: number; stdout: string; stderr: s
 })
 
 /**
- * Pele's SVG for the diagram, written once to the cache: named by content and
- * pele's version, so an earlier session's drawing is reused and an update redraws.
+ * Pele's SVG for the diagram in one scheme, or adaptive for the GUI surfaces,
+ * written once to the cache: named by content, pele's version and the colors,
+ * so an earlier session's drawing is reused and an update redraws.
  */
-async function peleFile($: Engine, dir: string, source: string): Promise<string> {
-  const file = `${dir}/${hashText(source)}.pele-${PELE_VERSION}.svg`
-  if (!(await $.fs.exists(file))) await $.fs.write(file, peleSvg(source))
+async function peleFile($: Engine, dir: string, source: string, colors: Scheme | 'adaptive'): Promise<string> {
+  const file = `${dir}/${hashText(source)}.pele-${PELE_VERSION}.${colors}.svg`
+  if (!(await $.fs.exists(file))) {
+    await $.fs.write(file, colors === 'adaptive' ? peleSvgAdaptive(source) : peleSvg(source, colors))
+  }
 
   return file
 }
 
-/** A PNG of the diagram: pele's SVG through resvg or rsvg-convert, or mmdc when neither is installed. */
-async function renderPng($: Engine, dir: string, source: string, rasterizer: Rasterizer | null): Promise<DiagramRender> {
+/** A PNG of the diagram in the scheme's colors: pele's SVG through resvg or rsvg-convert, or mmdc when neither is installed. */
+async function renderPng($: Engine, dir: string, source: string, found: Renderers | null): Promise<DiagramRender> {
   const id = hashText(source)
+  const scheme = found?.scheme ?? 'dark'
+  const rasterizer = found?.rasterizer ?? null
   let output: string
   let tool: string
   if (rasterizer !== null) {
     tool = rasterizer
-    output = `${dir}/${id}.pele-${PELE_VERSION}.png`
+    output = `${dir}/${id}.pele-${PELE_VERSION}.${scheme}.png`
     if (!(await $.fs.exists(output))) {
-      const input = await peleFile($, dir, source)
+      const input = await peleFile($, dir, source, scheme)
       const ran = await $.process.run(rasterArgv(rasterizer, input, output), { timeoutMs: 30_000 })
       if (ran.exitCode !== 0) return failed(rasterizer, ran)
     }
   } else {
     tool = 'mmdc'
-    output = `${dir}/${id}.png`
+    output = `${dir}/${id}.${scheme}.png`
     // Named by content, so an output an earlier session made is reused rather than drawn again.
     if (!(await $.fs.exists(output))) {
       const input = `${dir}/${id}.png.mmd`
       await $.fs.write(input, source)
+      const colors = scheme === 'dark' ? ['-t', 'dark', '-b', PELE_THEMES.dark.bg] : ['-b', 'white']
       const ran = await $.process.run(
-        ['mmdc', '-q', '-i', input, '-o', output, '-b', 'white', '-s', '2'],
+        ['mmdc', '-q', '-i', input, '-o', output, ...colors, '-s', '2'],
         { timeoutMs: 90_000 },
       )
       if (ran.exitCode !== 0) return failed('mmdc', ran)
@@ -380,9 +390,9 @@ async function renderDiagram(
       return ran.exitCode === 0 ? { format: 'ascii', text: stripAnsi(ran.stdout).trimEnd() } : failed('mermaid-ascii', ran)
     }
     const dir = await cacheDir($)
-    if (format === 'png') return await renderPng($, dir, source, found?.rasterizer ?? null)
+    if (format === 'png') return await renderPng($, dir, source, found)
 
-    const output = await peleFile($, dir, source)
+    const output = await peleFile($, dir, source, 'adaptive')
     const stat = await $.fs.stat(output)
     return stat.size > MAX_SVG
       ? { format: 'error', message: `Too large to draw inline: ${BROWSER_HINT}` }
@@ -478,12 +488,35 @@ async function canRun($: Engine, argv: string[]): Promise<boolean> {
   }
 }
 
+/**
+ * Light or dark for the terminal's PNGs, from Claude Code's theme setting:
+ * the value given (a change being made), else the one `/config` holds.
+ */
+async function currentScheme($: Engine, theme?: ConfigValue): Promise<Scheme> {
+  const [rows, colorfgbg] = await Promise.all([
+    theme === undefined ? $.config.list().catch(() => []) : [],
+    $.env.get('COLORFGBG'),
+  ])
+
+  return schemeFor(theme ?? (rows ?? []).find(row => row.key === 'theme')?.value, colorfgbg)
+}
+
+/** Redraws the PNGs in the other scheme's colors when the theme setting flips light and dark. */
+async function followTheme($: Engine, theme: ConfigValue): Promise<void> {
+  const [found, scheme] = await Promise.all([read($, renderers), currentScheme($, theme)])
+  if (found === null || found.scheme === scheme) return
+  await update($, renderers, () => ({ ...found, scheme }))
+  await update($, renders, all => Object.fromEntries(Object.entries(all).filter(([, r]) => r.format !== 'png')))
+  ensureRenders($)
+}
+
 async function detectRenderers($: Engine): Promise<void> {
-  const [ascii, mmdc, resvg, rsvg, term, program, kittyWindow, ghostty] = await Promise.all([
+  const [ascii, mmdc, resvg, rsvg, scheme, term, program, kittyWindow, ghostty] = await Promise.all([
     canRun($, ['mermaid-ascii', '--help']),
     canRun($, ['mmdc', '--version']),
     canRun($, ['resvg', '--version']),
     canRun($, ['rsvg-convert', '--version']),
+    currentScheme($),
     $.env.get('TERM'),
     $.env.get('TERM_PROGRAM'),
     $.env.get('KITTY_WINDOW_ID'),
@@ -495,8 +528,13 @@ async function detectRenderers($: Engine): Promise<void> {
     kittyWindow !== undefined ||
     ghostty !== undefined
   const rasterizer: Rasterizer | null = resvg ? 'resvg' : rsvg ? 'rsvg-convert' : null
-  const found: Renderers = { ascii, mmdc, rasterizer, isKitty }
+  const found: Renderers = { ascii, mmdc, rasterizer, isKitty, scheme }
+  const before = await read($, renderers)
   await update($, renderers, () => found)
+  // After a reload, PNGs drawn before a theme change are in the old colors.
+  if (before !== null && before.scheme !== scheme) {
+    await update($, renders, all => Object.fromEntries(Object.entries(all).filter(([, r]) => r.format !== 'png')))
+  }
   ensureRenders($)
 }
 
@@ -892,6 +930,14 @@ export const register: Register = on => {
 
     return started
   })
+
+  on('config.set', { key: 'theme' }, async ($, e, next) => {
+    const result = await next(e)
+    // The value as stored: `/config` may still read the old one right after.
+    if (result.deny === undefined) inBackground($, followTheme($, result.value))
+
+    return result
+  }).catch(($, e, next) => next(e))
 
   // Answered here without `next`, so xorio's command file never reaches the model.
   // A `/preview` this mod didn't register (the person's own, say) runs untouched.

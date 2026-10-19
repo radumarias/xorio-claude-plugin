@@ -9,19 +9,19 @@ A Claude Code **mod** (a plugin of function hooks) that previews Markdown and Me
 
 ### Diagrams as images in kitty and Ghostty
 
-Taken from a real Claude Code 2.1.303 session in kitty, with `resvg` installed: pele draws each diagram as SVG inside the mod and `resvg` turns it into the PNG the terminal shows.
+Taken from a real Claude Code 2.1.303 session in kitty, with `resvg` installed: pele draws each diagram as SVG inside the mod and `resvg` turns it into the PNG the terminal shows, in the colors of Claude Code's theme.
 
-`/xorio:preview examples/sample.md` opens the panel beside the conversation:
+`/xorio:preview examples/sample.md` in full screen (`z`), with the dark theme:
 
-![Claude Code's conversation on the left, the doc-preview panel on the right with the sample doc's flowchart and sequence diagram drawn as images](docs/kitty-pane.png)
-
-In full screen (`z`) the diagrams get the room:
-
-![The panel in full screen with the flowchart and the start of the sequence diagram drawn as images](docs/kitty-full.png)
+![The panel in full screen with the flowchart and the start of the sequence diagram drawn as dark images](docs/kitty-full.png)
 
 **Scrolled down:** an ER and a state diagram, then a gantt and a pie chart, all drawn by pele:
 
 ![Two panel screens side by side: an ER diagram and a state diagram, then a gantt chart, a pie chart and the fitted table](docs/kitty-diagrams.png)
+
+**With the light theme** (`/theme`), the diagrams are drawn light; switching the theme redraws the ones on screen:
+
+![The same panel in a light terminal with the diagrams drawn light](docs/kitty-light.png)
 
 ### Diagrams as text in other terminals
 
@@ -103,8 +103,8 @@ The command is a file in the xorio plugin (`commands/preview.md`) that this mod 
 
 | Where | Needs | Drawn as |
 |-------|-------|----------|
-| Desktop app / VS Code | — | SVG image, by pele |
-| kitty or Ghostty | [`resvg`](https://github.com/linebender/resvg) (`cargo install resvg`, `brew install resvg`) or `rsvg-convert` (librsvg) | PNG image: pele's SVG rasterized at 2× |
+| Desktop app / VS Code | — | SVG image, by pele, light or dark as the app is |
+| kitty or Ghostty | [`resvg`](https://github.com/linebender/resvg) (`cargo install resvg`, `brew install resvg`) or `rsvg-convert` (librsvg) | PNG image: pele's SVG rasterized at 2×, light or dark as Claude Code's theme is |
 | kitty or Ghostty, neither of those | `mmdc` ([`@mermaid-js/mermaid-cli`](https://github.com/mermaid-js/mermaid-cli)) | PNG image, by mermaid.js in a headless browser |
 | Terminal | [`mermaid-ascii`](https://github.com/AlexanderGrooff/mermaid-ascii) | Text-art diagram: flowcharts, sequence and ER diagrams, plus state and class diagrams, which the mod rewrites as flowcharts first (class members are left out) |
 | Terminal, no pixels | — | Pie charts as labelled bars and gantt charts as a day-scale timeline, drawn by the mod itself |
