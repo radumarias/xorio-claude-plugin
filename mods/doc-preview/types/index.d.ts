@@ -26,9 +26,12 @@ export type Rasterizer = 'resvg' | 'rsvg-convert'
 /**
  * Which inline renderers this machine has, and whether the terminal draws
  * pixels. Pele, vendored in the mod, draws SVG everywhere; `rasterizer` makes
- * PNGs of it, and `mmdc` is the fallback when there is none.
+ * PNGs of it in `scheme`'s colors, and `mmdc` is the fallback when there is none.
  */
-export type Renderers = { ascii: boolean; mmdc: boolean; rasterizer: Rasterizer | null; isKitty: boolean }
+export type Renderers = { ascii: boolean; mmdc: boolean; rasterizer: Rasterizer | null; isKitty: boolean; scheme: Scheme }
+
+/** Which colors the terminal's PNGs are drawn in, from Claude Code's theme. */
+export type Scheme = 'light' | 'dark'
 
 declare module 'claude-code' {
   interface PluginState {

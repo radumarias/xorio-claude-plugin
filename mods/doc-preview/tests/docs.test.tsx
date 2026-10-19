@@ -18,10 +18,13 @@ import {
   layoutColumns,
   pngSize,
   PELE_VERSION,
+  PELE_THEMES,
   peleSvg,
+  peleSvgAdaptive,
   previewHtml,
   rasterArgv,
   rendererError,
+  schemeFor,
   splitDoc,
   stripAnsi,
   tableAsList,
@@ -276,7 +279,7 @@ describe('rendering helpers', () => {
   })
 
   test('formatFor picks pixels, text or nothing per surface', () => {
-    const all = { ascii: true, mmdc: false, rasterizer: 'resvg' as const, isKitty: false }
+    const all = { ascii: true, mmdc: false, rasterizer: 'resvg' as const, isKitty: false, scheme: 'dark' as const }
     expect(formatFor('terminal', { ...all, isKitty: true })).toBe('png')
     expect(formatFor('terminal', { ...all, isKitty: true, rasterizer: null, mmdc: true })).toBe('png')
     expect(formatFor('terminal', { ...all, isKitty: true, rasterizer: null })).toBe('ascii')
@@ -290,7 +293,7 @@ describe('rendering helpers', () => {
 })
 
 describe('pele', () => {
-  test('peleSvg draws every kind as one self-contained SVG, no CSS variables left', () => {
+  test('peleSvg draws every kind as one self-contained SVG in the scheme asked, no CSS variables left', () => {
     const kinds = [
       'flowchart LR\n  A[Start] --> B{ok?}\n  B -->|yes| C[Done]',
       'sequenceDiagram\n  Alice->>Bob: hi\n  Bob-->>Alice: hello',
@@ -302,11 +305,30 @@ describe('pele', () => {
       'mindmap\n  root((x))\n    a\n    b',
     ]
     for (const source of kinds) {
-      const svg = peleSvg(source)
-      expect(svg.startsWith('<svg')).toBe(true)
-      expect(svg.includes('var(')).toBe(false)
-      expect(svg.includes('<rect width="100%" height="100%" fill="#ffffff"/>')).toBe(true)
+      for (const scheme of ['light', 'dark'] as const) {
+        const svg = peleSvg(source, scheme)
+        expect(svg.startsWith('<svg')).toBe(true)
+        expect(svg.includes('var(')).toBe(false)
+        expect(svg.includes(`<rect width="100%" height="100%" fill="${PELE_THEMES[scheme].bg}"/>`)).toBe(true)
+      }
     }
+    expect(peleSvg('flowchart LR\n  A --> B', 'dark').includes(PELE_THEMES.dark.fg)).toBe(true)
+  })
+
+  test('peleSvgAdaptive keeps the variables and turns dark under prefers-color-scheme', () => {
+    const svg = peleSvgAdaptive('flowchart LR\n  A --> B')
+    expect(svg.includes('<rect width="100%" height="100%" fill="var(--_bg)"/>')).toBe(true)
+    expect(svg.includes(`@media (prefers-color-scheme: dark){svg{--pele-bg:${PELE_THEMES.dark.bg};`)).toBe(true)
+  })
+
+  test('schemeFor reads the theme setting, then COLORFGBG, then says dark', () => {
+    expect(schemeFor('light', undefined)).toBe('light')
+    expect(schemeFor('light-daltonized', '15;0')).toBe('light')
+    expect(schemeFor('dark-ansi', '0;15')).toBe('dark')
+    expect(schemeFor('auto', '0;15')).toBe('light')
+    expect(schemeFor('auto', '15;0')).toBe('dark')
+    expect(schemeFor('auto', '0;default;7')).toBe('light')
+    expect(schemeFor(undefined, undefined)).toBe('dark')
   })
 
   test('flattenPeleSvg resolves both levels of variables, theme first, then the fallback', () => {
@@ -315,7 +337,7 @@ describe('pele', () => {
   })
 
   test('peleSvg throws on a diagram it cannot read', () => {
-    expect(() => peleSvg('not a diagram at all')).toThrow()
+    expect(() => peleSvg('not a diagram at all', 'light')).toThrow()
   })
 
   test('rasterArgv doubles the size with either tool', () => {
