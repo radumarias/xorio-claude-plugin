@@ -24,6 +24,7 @@ import {
   previewHtml,
   rasterArgv,
   rendererError,
+  renderKey,
   schemeFor,
   splitDoc,
   stripAnsi,
@@ -319,6 +320,12 @@ describe('pele', () => {
     const svg = peleSvgAdaptive('flowchart LR\n  A --> B')
     expect(svg.includes('<rect width="100%" height="100%" fill="var(--_bg)"/>')).toBe(true)
     expect(svg.includes(`@media (prefers-color-scheme: dark){svg{--pele-bg:${PELE_THEMES.dark.bg};`)).toBe(true)
+  })
+
+  test('renderKey keeps a PNG per scheme and one SVG for both', () => {
+    const source = 'flowchart LR\n  A --> B'
+    expect(renderKey(source, 'png', 'light')).not.toBe(renderKey(source, 'png', 'dark'))
+    expect(renderKey(source, 'svg', 'light')).toBe(renderKey(source, 'svg', 'dark'))
   })
 
   test('schemeFor reads the theme setting, then COLORFGBG, then says dark', () => {

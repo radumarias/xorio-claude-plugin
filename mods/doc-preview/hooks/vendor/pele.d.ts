@@ -6,12 +6,10 @@
  */
 export type RenderOptions = {
   fontFamily?: string
-  fontSize?: number
-  padding?: number
   /** Links in the diagram (`click` lines); off here, the pane can't follow them. */
   links?: boolean
   images?: boolean
 }
-export type RenderResult = { type: string; svg: string; width: number; height: number }
+export type RenderResult = { svg: string }
 /** Mermaid source to a standalone SVG string; throws on syntax it can't read. */
 export function render(source: string, options?: RenderOptions): RenderResult

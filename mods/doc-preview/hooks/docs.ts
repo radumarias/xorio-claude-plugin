@@ -744,10 +744,10 @@ export function formatFor(surface: string, renderers: Renderers | null): InlineF
 /** The pele build vendored in `vendor/pele.js`; cached drawings are named with it. */
 export const PELE_VERSION = '1.6.0'
 
-/** Pele's palette per scheme: light is its own defaults, dark the browser page's (GitHub dark). */
 /** Pele's `--pele-*` colors, by the name after the prefix. */
 type Palette = Record<'bg' | 'fg' | 'muted' | 'line' | 'surface' | 'surface-alt' | 'border' | 'accent', string>
 
+/** Pele's palette per scheme: light is its own defaults, dark the browser page's (GitHub dark). */
 export const PELE_THEMES: Record<Scheme, Palette> = {
   light: {
     bg: '#ffffff',
@@ -770,6 +770,11 @@ export const PELE_THEMES: Record<Scheme, Palette> = {
     accent: '#4493f8',
   },
 }
+
+/** The dark palette as `--pele-*` declarations, set under `prefers-color-scheme: dark`. */
+const PELE_DARK_VARS = Object.entries(PELE_THEMES.dark)
+  .map(([key, value]) => `--pele-${key}:${value}`)
+  .join(';')
 
 /**
  * Light or dark, from Claude Code's `theme` setting (`dark`, `light-ansi`,
@@ -815,9 +820,12 @@ const drawPele = (source: string): string =>
     // The initial values, which resvg warns it can't parse.
     .svg.replace(/(letter|word)-spacing:normal;?/g, '')
 
+/** Markup put first inside the root `<svg>`. */
+const prependToSvg = (svg: string, markup: string): string => svg.replace(/^(<svg\b[^>]*>)/, `$1${markup}`)
+
 /** A ground painted first, so it sits under the drawing. */
 const withGround = (svg: string, fill: string): string =>
-  svg.replace(/^(<svg\b[^>]*>)/, `$1<rect width="100%" height="100%" fill="${fill}"/>`)
+  prependToSvg(svg, `<rect width="100%" height="100%" fill="${fill}"/>`)
 
 /**
  * A Mermaid diagram as a standalone SVG by pele in one scheme's colors, its
@@ -833,12 +841,9 @@ export function peleSvg(source: string, scheme: Scheme): string {
  * app's own theme as it changes; throws on syntax pele can't read.
  */
 export function peleSvgAdaptive(source: string): string {
-  const dark = Object.entries(PELE_THEMES.dark)
-    .map(([key, value]) => `--pele-${key}:${value}`)
-    .join(';')
-  const style = `<style>@media (prefers-color-scheme: dark){svg{${dark}}}</style>`
+  const style = `<style>@media (prefers-color-scheme: dark){svg{${PELE_DARK_VARS}}}</style>`
 
-  return withGround(drawPele(source), 'var(--_bg)').replace(/^(<svg\b[^>]*>)/, `$1${style}`)
+  return prependToSvg(withGround(drawPele(source), 'var(--_bg)'), style)
 }
 
 /** The command that turns an SVG file into a PNG at twice its size, by the rasterizer found. */
@@ -851,10 +856,11 @@ export function rasterArgv(tool: Rasterizer, input: string, output: string): str
 /**
  * A render's cache key: a hash of what the renderer is given (for ASCII the
  * flowchart a state or class diagram becomes), so a converter change makes
- * new keys by itself.
+ * new keys by itself, and for a PNG the scheme it is colored in, so both
+ * schemes' drawings are kept as the theme flips.
  */
-export const renderKey = (source: string, format: InlineFormat): string =>
-  `${hashText(format === 'ascii' ? asciiSource(source) : source)}.${format}`
+export const renderKey = (source: string, format: InlineFormat, scheme: Scheme): string =>
+  `${hashText(format === 'ascii' ? asciiSource(source) : source)}.${format}${format === 'png' ? `.${scheme}` : ''}`
 
 const escapeHtml = (text: string): string =>
   text.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
@@ -907,7 +913,7 @@ ${base}
   pre code { background: none; padding: 0; font-size: 100%; }
   figure.mermaid { margin: 0 0 16px; text-align: center; overflow: auto; }
   @media (prefers-color-scheme: dark) {
-    figure.mermaid { --pele-bg: #0d1117; --pele-fg: #e6edf3; --pele-muted: #9198a1; --pele-line: #d1d9e0; --pele-surface: #151b23; --pele-surface-alt: #212830; --pele-border: #3d444d; --pele-accent: #4493f8; }
+    figure.mermaid { ${PELE_DARK_VARS}; }
   }
   table { border-collapse: collapse; display: block; overflow: auto; }
   th, td { border: 1px solid var(--line); padding: 6px 13px; }

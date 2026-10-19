@@ -66,7 +66,7 @@ type DrawnBlock =
   | { kind: 'table'; lines: TableLine[] | null; list: string }
   | { kind: 'mermaid'; source: string; title: string; type: string; isText: boolean; chart: string | null; key: string | null }
 type Listing = { entries: SelectOption[]; total: number } | { error: string }
-type RenderJob = { format: InlineFormat; source: string }
+type RenderJob = { format: InlineFormat; source: string; scheme: Scheme }
 /** What both pane views draw with: the surface's elements, the room, and the state they read. */
 type PaneContext = {
   el: ElementTable
@@ -275,8 +275,15 @@ function loadShown($: Engine, v: DocTarget): { key: string; doc: Promise<Loaded>
 }
 
 /** The shown doc's blocks for one width, surface and format, made once and reused by every scroll's redraw. */
-function layoutOf(key: string, doc: Shown, columns: number, surface: RenderSurface, format: InlineFormat | null) {
-  const layoutKey = `${key}|${columns}|${surface}|${format}`
+function layoutOf(
+  key: string,
+  doc: Shown,
+  columns: number,
+  surface: RenderSurface,
+  format: InlineFormat | null,
+  scheme: Scheme,
+) {
+  const layoutKey = `${key}|${columns}|${surface}|${format}|${scheme}`
   if (layout?.key === layoutKey) return layout
   // The terminal's Markdown draws a table at its full width and the terminal wraps the
   // overflow, breaking its borders: there tables are drawn here, fitted to the pane.
@@ -295,7 +302,7 @@ function layoutOf(key: string, doc: Shown, columns: number, surface: RenderSurfa
       type: diagramKind(source),
       isText: isTextChart(source),
       chart: textChart(source, columns - 4),
-      key: format === null ? null : renderKey(source, format),
+      key: format === null ? null : renderKey(source, format, scheme),
     }
   })
   layout = { key: layoutKey, blocks, diagramCount: blocks.filter(b => b.kind === 'mermaid').length }
@@ -343,10 +350,14 @@ async function peleFile($: Engine, dir: string, source: string, colors: Scheme |
 }
 
 /** A PNG of the diagram in the scheme's colors: pele's SVG through resvg or rsvg-convert, or mmdc when neither is installed. */
-async function renderPng($: Engine, dir: string, source: string, found: Renderers | null): Promise<DiagramRender> {
+async function renderPng(
+  $: Engine,
+  dir: string,
+  source: string,
+  scheme: Scheme,
+  rasterizer: Rasterizer | null,
+): Promise<DiagramRender> {
   const id = hashText(source)
-  const scheme = found?.scheme ?? 'dark'
-  const rasterizer = found?.rasterizer ?? null
   let output: string
   let tool: string
   if (rasterizer !== null) {
@@ -364,7 +375,7 @@ async function renderPng($: Engine, dir: string, source: string, found: Renderer
     if (!(await $.fs.exists(output))) {
       const input = `${dir}/${id}.png.mmd`
       await $.fs.write(input, source)
-      const colors = scheme === 'dark' ? ['-t', 'dark', '-b', PELE_THEMES.dark.bg] : ['-b', 'white']
+      const colors = [...(scheme === 'dark' ? ['-t', 'dark'] : []), '-b', PELE_THEMES[scheme].bg]
       const ran = await $.process.run(
         ['mmdc', '-q', '-i', input, '-o', output, ...colors, '-s', '2'],
         { timeoutMs: 90_000 },
@@ -380,9 +391,8 @@ async function renderPng($: Engine, dir: string, source: string, found: Renderer
 
 async function renderDiagram(
   $: Engine,
-  source: string,
-  format: InlineFormat,
-  found: Renderers | null,
+  { format, source, scheme }: RenderJob,
+  rasterizer: Rasterizer | null,
 ): Promise<DiagramRender> {
   try {
     if (format === 'ascii') {
@@ -390,7 +400,7 @@ async function renderDiagram(
       return ran.exitCode === 0 ? { format: 'ascii', text: stripAnsi(ran.stdout).trimEnd() } : failed('mermaid-ascii', ran)
     }
     const dir = await cacheDir($)
-    if (format === 'png') return await renderPng($, dir, source, found)
+    if (format === 'png') return await renderPng($, dir, source, scheme, rasterizer)
 
     const output = await peleFile($, dir, source, 'adaptive')
     const stat = await $.fs.stat(output)
@@ -428,13 +438,14 @@ async function renderShown($: Engine): Promise<void> {
   if ('error' in doc) return
 
   const sources = mermaidSources(doc.source, doc.isMermaid)
+  const scheme = found?.scheme ?? 'dark'
   const jobs = [...formats].flatMap(format =>
-    sources.filter(source => !(format === 'ascii' && isTextChart(source))).map(source => ({ format, source })),
+    sources.filter(source => !(format === 'ascii' && isTextChart(source))).map(source => ({ format, source, scheme })),
   )
-  needed = new Set(jobs.map(job => renderKey(job.source, job.format)))
+  needed = new Set(jobs.map(jobKey))
   // The queue holds only the shown doc's jobs: a doc no longer shown doesn't keep the
   // workers busy, and a job is queued once however often the doc reloads.
-  queue.splice(0, queue.length, ...jobs.filter(job => done[renderKey(job.source, job.format)] === undefined))
+  queue.splice(0, queue.length, ...jobs.filter(job => done[jobKey(job)] === undefined))
   while (workers < RENDER_CONCURRENCY && queue.length > 0) {
     workers += 1
     inBackground(
@@ -454,19 +465,21 @@ async function drainQueue($: Engine): Promise<void> {
  * Renders one diagram unless another worker is on it or has finished it: the
  * key is claimed before the current renders are read, so it is drawn once.
  */
-async function renderJob($: Engine, { format, source }: RenderJob): Promise<void> {
-  const key = renderKey(source, format)
+async function renderJob($: Engine, job: RenderJob): Promise<void> {
+  const key = jobKey(job)
   if (rendering.has(key)) return
   rendering.add(key)
   try {
     const [done, found] = await Promise.all([read($, renders), read($, renderers)])
     if (done[key] !== undefined) return
-    const result = await renderDiagram($, source, format, found)
+    const result = await renderDiagram($, job, found?.rasterizer ?? null)
     await update($, renders, all => pruneRenders({ ...withoutKey(all, key), [key]: result }))
   } finally {
     rendering.delete(key)
   }
 }
+
+const jobKey = ({ source, format, scheme }: RenderJob): string => renderKey(source, format, scheme)
 
 const withoutKey = <T,>(all: Record<string, T>, key: string): Record<string, T> =>
   Object.fromEntries(Object.entries(all).filter(([k]) => k !== key))
@@ -501,22 +514,16 @@ async function currentScheme($: Engine, theme?: ConfigValue): Promise<Scheme> {
   return schemeFor(theme ?? (rows ?? []).find(row => row.key === 'theme')?.value, colorfgbg)
 }
 
-/** Redraws the PNGs in the other scheme's colors when the theme setting flips light and dark. */
+/** Draws the PNGs in the other scheme's colors when the theme setting flips light and dark. */
 async function followTheme($: Engine, theme: ConfigValue): Promise<void> {
   const [found, scheme] = await Promise.all([read($, renderers), currentScheme($, theme)])
   if (found === null || found.scheme === scheme) return
   await update($, renderers, () => ({ ...found, scheme }))
-  await update($, renders, all => Object.fromEntries(Object.entries(all).filter(([, r]) => r.format !== 'png')))
   ensureRenders($)
 }
 
 async function detectRenderers($: Engine): Promise<void> {
-  const [ascii, mmdc, resvg, rsvg, scheme, term, program, kittyWindow, ghostty] = await Promise.all([
-    canRun($, ['mermaid-ascii', '--help']),
-    canRun($, ['mmdc', '--version']),
-    canRun($, ['resvg', '--version']),
-    canRun($, ['rsvg-convert', '--version']),
-    currentScheme($),
+  const [term, program, kittyWindow, ghostty] = await Promise.all([
     $.env.get('TERM'),
     $.env.get('TERM_PROGRAM'),
     $.env.get('KITTY_WINDOW_ID'),
@@ -527,14 +534,17 @@ async function detectRenderers($: Engine): Promise<void> {
     /kitty|ghostty/i.test(program ?? '') ||
     kittyWindow !== undefined ||
     ghostty !== undefined
+  // The PNG tools serve only kitty and Ghostty: elsewhere they aren't probed (mmdc starts Node).
+  const pixels = (argv: string[]) => (isKitty ? canRun($, argv) : Promise.resolve(false))
+  const [ascii, mmdc, resvg, rsvg, scheme] = await Promise.all([
+    canRun($, ['mermaid-ascii', '--help']),
+    pixels(['mmdc', '--version']),
+    pixels(['resvg', '--version']),
+    pixels(['rsvg-convert', '--version']),
+    currentScheme($),
+  ])
   const rasterizer: Rasterizer | null = resvg ? 'resvg' : rsvg ? 'rsvg-convert' : null
-  const found: Renderers = { ascii, mmdc, rasterizer, isKitty, scheme }
-  const before = await read($, renderers)
-  await update($, renderers, () => found)
-  // After a reload, PNGs drawn before a theme change are in the old colors.
-  if (before !== null && before.scheme !== scheme) {
-    await update($, renders, all => Object.fromEntries(Object.entries(all).filter(([, r]) => r.format !== 'png')))
-  }
+  await update($, renderers, () => ({ ascii, mmdc, rasterizer, isKitty, scheme }))
   ensureRenders($)
 }
 
@@ -832,7 +842,7 @@ async function renderDoc($: Engine, ctx: PaneContext, v: DocTarget): Promise<Ren
   if ('error' in doc) return page(<Text color="red">{doc.error}</Text>)
 
   const format = formatFor(surface, found)
-  const { blocks, diagramCount } = layoutOf(shown.key, doc, columns, surface, format)
+  const { blocks, diagramCount } = layoutOf(shown.key, doc, columns, surface, format, found?.scheme ?? 'dark')
   const renderOf = (key: string | null) => (key === null ? undefined : done[key])
   await loadSvgs(
     $,
