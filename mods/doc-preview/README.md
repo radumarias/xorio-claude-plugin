@@ -39,7 +39,7 @@ Ask Claude for a diagram (or have it write a `.md` file) and a line above the pr
 
 ![The file picker with the Browse list open](docs/picker.png)
 
-**In the browser** (`b`): every diagram drawn by mermaid.js.
+**In the browser** (`b`): every diagram drawn by [pele](https://pele.run/), in the light or dark scheme your browser asks for.
 
 ![The browser page with the flowchart and sequence diagram drawn](docs/browser.png)
 
@@ -80,18 +80,19 @@ The command is a file in the xorio plugin (`commands/preview.md`) that this mod 
 ## How things are drawn
 
 - **Markdown** uses Claude Code's own renderer (headings, lists, code). On the terminal the mod draws tables itself, fitted to the panel (see above).
-- **Open in browser** writes a page to `~/.cache/claude-doc-preview/` and opens it with the system opener (`xdg-open`, `open` or `explorer`). The page renders the Markdown and every Mermaid diagram. It loads marked, DOMPurify and mermaid.js from jsDelivr at exact versions with SRI hashes; a strict Content-Security-Policy, DOMPurify and Mermaid's `strict` security level keep the document's own HTML from running script.
-- **Mermaid inside the panel** depends on what is installed:
+- **Open in browser** writes a page to `~/.cache/claude-doc-preview/` and opens it with the system opener (`xdg-open`, `open` or `explorer`). The page renders the Markdown and every Mermaid diagram. It loads marked, DOMPurify and pele from jsDelivr at exact versions with SRI hashes; a strict Content-Security-Policy, DOMPurify (which also sanitizes each diagram's SVG) and pele's own escaping keep the document's own HTML from running script.
+- **Mermaid inside the panel** is drawn by [pele](https://pele.run/) (MIT, from the Obsidian team), a dependency-free Mermaid-to-SVG renderer vendored in the mod (`hooks/vendor/pele.js`), so it runs inside Claude Code with no browser. Pele covers every Mermaid diagram type, with its own layout and look, so a diagram won't match mermaid.js pixel for pixel. A terminal can't show SVG, so what it shows depends on what is installed:
 
 | Where | Needs | Drawn as |
 |-------|-------|----------|
+| Desktop app / VS Code | — | SVG image, by pele |
+| kitty or Ghostty | [`resvg`](https://github.com/linebender/resvg) (`cargo install resvg`, `brew install resvg`) or `rsvg-convert` (librsvg) | PNG image: pele's SVG rasterized at 2× |
+| kitty or Ghostty, neither of those | `mmdc` ([`@mermaid-js/mermaid-cli`](https://github.com/mermaid-js/mermaid-cli)) | PNG image, by mermaid.js in a headless browser |
 | Terminal | [`mermaid-ascii`](https://github.com/AlexanderGrooff/mermaid-ascii) | Text-art diagram: flowcharts, sequence and ER diagrams, plus state and class diagrams, which the mod rewrites as flowcharts first (class members are left out) |
-| kitty or Ghostty | `mmdc` ([`@mermaid-js/mermaid-cli`](https://github.com/mermaid-js/mermaid-cli)) | PNG image |
-| Desktop app / VS Code | `mmdc` | SVG image |
-| Anywhere | — | Pie charts as labelled bars and gantt charts as a day-scale timeline, drawn by the mod itself |
-| Anywhere, no tool for the type | — | The diagram's source, with a hint to press `b` |
+| Terminal, no pixels | — | Pie charts as labelled bars and gantt charts as a day-scale timeline, drawn by the mod itself |
+| Terminal, no tool for the type | — | The diagram's source, with a hint to press `b` |
 
-State diagrams with composite states, forks or concurrency, gantt charts with dates other than `YYYY-MM-DD`, and other types (mindmap, timeline, journey, …) fall back to the source.
+In a terminal without pixels, state diagrams with composite states, forks or concurrency, gantt charts with dates other than `YYYY-MM-DD`, and other types (mindmap, timeline, journey, …) fall back to the source.
 
 The mod checks for these tools when it loads; reload the plugin after installing one. Rendered files are cached in `~/.cache/claude-doc-preview/`.
 
@@ -107,7 +108,8 @@ tsc -p mods/doc-preview                                              # once the 
 | Path | Purpose |
 |------|---------|
 | `hooks/register.tsx` | The hooks: `/xorio:preview`, the band, the pane, Write/Edit and reply tracking, rendering, the browser page |
-| `hooks/docs.ts` | Pure helpers (splitting a doc into prose, tables and diagrams, drawing tables and text charts, diagram-to-flowchart conversion, paths, hashing, PNG size, the browser page's HTML); no `$` |
+| `hooks/docs.ts` | Pure helpers (splitting a doc into prose, tables and diagrams, drawing tables and text charts, diagram-to-flowchart conversion, pele's SVG, paths, hashing, PNG size, the browser page's HTML); no `$` |
+| `hooks/vendor/` | Pele's `dist/pele.js`, unmodified, with its license and the types the mod uses (`pele.d.ts` says how to update it) |
 | `types/index.d.ts` | The `$.state` contract the module reads and writes |
 | `tests/` | `claude plugin test` suites. They are `.test.tsx` so the repo's bare `node --test` doesn't pick them up |
 

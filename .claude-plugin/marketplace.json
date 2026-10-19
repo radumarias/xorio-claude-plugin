@@ -19,7 +19,7 @@
       "name": "doc-preview",
       "source": "./mods/doc-preview",
       "description": "Preview Markdown and Mermaid: /xorio:preview [path] with a file picker, and one-key previews of the docs and diagrams Claude writes",
-      "version": "0.1.0"
+      "version": "0.2.0"
     }
   ]
 }

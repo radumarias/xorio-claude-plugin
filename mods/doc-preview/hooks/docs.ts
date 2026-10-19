@@ -1,6 +1,7 @@
 // Pure helpers: no `$`, so the tests exercise them directly.
 
-import type { Renderers } from '../types'
+import type { Rasterizer, Renderers } from '../types'
+import { render as peleRender } from './vendor/pele.js'
 
 export const PANE = 'doc-preview'
 /** `Svg` takes at most 131072 characters. */
@@ -727,17 +728,72 @@ export function imageBox(
   return { columns, rows: Math.max(2, Math.min(255, rows)) }
 }
 
-/** Which inline format a surface gets, or null to show the diagram's source. */
+/**
+ * Which inline format a surface gets, or null to show the diagram's source.
+ * Desktop and VS Code always get SVG: pele draws it inside the mod. The
+ * terminal gets a PNG where it draws pixels and something can rasterize.
+ */
 export function formatFor(surface: string, renderers: Renderers | null): InlineFormat | null {
+  if (surface !== 'terminal') return 'svg'
   if (renderers === null) return null
-  if (surface === 'terminal') {
-    if (renderers.isKitty && renderers.mmdc) return 'png'
-
-    return renderers.ascii ? 'ascii' : null
-  }
-  if (renderers.mmdc) return 'svg'
+  if (renderers.isKitty && (renderers.rasterizer !== null || renderers.mmdc)) return 'png'
 
   return renderers.ascii ? 'ascii' : null
+}
+
+/** The pele build vendored in `vendor/pele.js`; cached drawings are named with it. */
+export const PELE_VERSION = '1.6.0'
+
+/** Pele's palette (its light defaults); the drawing is flattened to these, on a white ground like mmdc's. */
+const PELE_THEME: Record<string, string> = {
+  bg: '#ffffff',
+  fg: '#1f1f1f',
+  muted: '#6e6e6e',
+  line: '#1f1f1f',
+  surface: '#f3f3f3',
+  'surface-alt': '#e6e6e6',
+  border: '#8a8a8a',
+  accent: '#5b7bd5',
+}
+
+/**
+ * Pele's SVG with its CSS variables resolved: it themes through
+ * `--_x: var(--pele-x, fallback)` on the root and `var(--_x)` below, which
+ * resvg and librsvg don't follow and an image's host page can't set anyway.
+ */
+export function flattenPeleSvg(svg: string, theme: Record<string, string> = PELE_THEME): string {
+  const local = new Map<string, string>()
+  const declared = svg.replace(/--(_[\w-]+):var\(--pele-([\w-]+),([^)]*)\);?/g, (_, name: string, key: string, fallback: string) => {
+    local.set(name, theme[key] ?? fallback)
+    return ''
+  })
+
+  return declared
+    .replace(/var\(--(_[\w-]+)\)/g, (whole, name: string) => local.get(name) ?? whole)
+    .replace(/var\(--pele-[\w-]+,([^)]*)\)/g, '$1')
+}
+
+/**
+ * Named families before the generic one: resvg maps `sans-serif` to Arial and
+ * draws no text where Arial is missing (most Linux), so it takes the first
+ * family here that is installed.
+ */
+const PELE_FONTS = "Helvetica, Arial, 'Segoe UI', 'DejaVu Sans', 'Liberation Sans', 'Noto Sans', sans-serif"
+
+/** A Mermaid diagram as a standalone SVG by pele, on a white ground; throws on syntax pele can't read. */
+export function peleSvg(source: string): string {
+  const svg = flattenPeleSvg(peleRender(source, { fontFamily: PELE_FONTS, links: false, images: false }).svg)
+    // The initial values, which resvg warns it can't parse.
+    .replace(/(letter|word)-spacing:normal;?/g, '')
+  // Painted first, so it sits under the drawing.
+  return svg.replace(/^(<svg\b[^>]*>)/, `$1<rect width="100%" height="100%" fill="${PELE_THEME.bg}"/>`)
+}
+
+/** The command that turns an SVG file into a PNG at twice its size, by the rasterizer found. */
+export function rasterArgv(tool: Rasterizer, input: string, output: string): string[] {
+  return tool === 'resvg'
+    ? ['resvg', '--zoom', '2', input, output]
+    : ['rsvg-convert', '--zoom', '2', '--output', output, input]
 }
 
 /**
@@ -760,9 +816,9 @@ const scriptJson = (value: unknown): string =>
 
 /**
  * A standalone page that renders the document in the browser: Markdown through
- * marked + DOMPurify, ```mermaid blocks and .mmd files through mermaid.js, all
- * from jsDelivr. A strict CSP and Mermaid's strict security level keep the
- * document's own HTML from running script.
+ * marked + DOMPurify, ```mermaid blocks and .mmd files through pele (the
+ * build the pane uses), all from jsDelivr. A strict CSP, DOMPurify and pele's
+ * own escaping keep the document's own HTML from running script.
  */
 export function previewHtml(doc: {
   title: string
@@ -797,7 +853,10 @@ ${base}
   code { background: var(--code); padding: .2em .4em; border-radius: 6px; }
   pre { background: var(--code); padding: 16px; border-radius: 6px; overflow: auto; }
   pre code { background: none; padding: 0; font-size: 100%; }
-  pre.mermaid { background: #ffffff; text-align: center; }
+  figure.mermaid { margin: 0 0 16px; text-align: center; overflow: auto; }
+  @media (prefers-color-scheme: dark) {
+    figure.mermaid { --pele-bg: #0d1117; --pele-fg: #e6edf3; --pele-muted: #9198a1; --pele-line: #d1d9e0; --pele-surface: #151b23; --pele-surface-alt: #212830; --pele-border: #3d444d; --pele-accent: #4493f8; }
+  }
   table { border-collapse: collapse; display: block; overflow: auto; }
   th, td { border: 1px solid var(--line); padding: 6px 13px; }
   blockquote { margin: 0; padding: 0 1em; color: var(--muted); border-left: .25em solid var(--line); }
@@ -805,7 +864,7 @@ ${base}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/marked@15.0.12/marked.min.js" integrity="sha384-948ahk4ZmxYVYOc+rxN1H2gM1EJ2Duhp7uHtZ4WSLkV4Vtx5MUqnV+l7u9B+jFv+" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.16/dist/purify.min.js" integrity="sha384-a7SzOxErzJ3ZpQz0zJ32d67dSitNzPcbfybc/ykU9KJhMgZkwqfSxlhhdJRS+XGL" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.min.js" integrity="sha384-EOXBFmc3gx5mb+vn0vPvvGqACToJD24hhacX5Yx+8NUUQrHIle/Qi5Bg9o3zKwW2" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/pele@${PELE_VERSION}/dist/pele.global.js" integrity="sha384-4lHoXtKDt+x/E+htiTc83bpFWyREQzJCMudNQHirqKiCTW7Mx790I/5Q7criNZ1G" crossorigin="anonymous"></script>
 </head>
 <body>
 <main>
@@ -843,12 +902,17 @@ ${base}
     raw();
     return;
   }
-  if (!window.mermaid) return;
-  try {
-    mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'default' });
-    await mermaid.run({ querySelector: 'pre.mermaid' });
-  } catch (err) {
-    console.error(err);
+  if (!window.pele || !window.DOMPurify) return;
+  for (const pre of article.querySelectorAll('pre.mermaid')) {
+    try {
+      const { svg } = pele.render(pre.textContent, { links: false, images: false });
+      const figure = document.createElement('figure');
+      figure.className = 'mermaid';
+      figure.innerHTML = DOMPurify.sanitize(svg, { USE_PROFILES: { svg: true, svgFilters: true } });
+      pre.replaceWith(figure);
+    } catch (err) {
+      console.error(err);
+    }
   }
 })();
 </script>
