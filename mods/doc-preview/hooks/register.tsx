@@ -10,10 +10,11 @@ import type {
   Timer,
 } from 'claude-code'
 
-import type { DiagramRender, DocView, GeneratedDoc, PaneSize, Renderers, ReplyDiagram } from '../types'
+import type { DiagramRender, DocView, GeneratedDoc, PaneSize, Rasterizer, Renderers, ReplyDiagram } from '../types'
 import {
   MAX_SVG,
   PANE,
+  PELE_VERSION,
   asciiSource,
   baseName,
   countOf,
@@ -33,8 +34,10 @@ import {
   mermaidSources,
   newestFirst,
   parentDir,
+  peleSvg,
   pngSize,
   previewHtml,
+  rasterArgv,
   renderKey,
   rendererError,
   splitDoc,
@@ -92,7 +95,7 @@ const FALLBACK_COMMAND = 'preview'
 const MAX_RECENT = 20
 const MAX_RENDERS = 40
 const MAX_ENTRIES = 300
-/** Renders running at once across all passes: each mmdc run starts a headless browser. */
+/** Renders running at once across all passes: an mmdc run starts a headless browser. */
 const RENDER_CONCURRENCY = 3
 const POLL_MS = 2000
 /** `w` and `n` move the pane's width by this many columns, between these bounds. */
@@ -321,38 +324,69 @@ const failed = (tool: string, ran: { exitCode: number; stdout: string; stderr: s
   message: firstLine(ran.stderr || ran.stdout) || `${tool} exited ${ran.exitCode}`,
 })
 
-async function renderDiagram($: Engine, source: string, format: InlineFormat): Promise<DiagramRender> {
+/**
+ * Pele's SVG for the diagram, written once to the cache: named by content and
+ * pele's version, so an earlier session's drawing is reused and an update redraws.
+ */
+async function peleFile($: Engine, dir: string, source: string): Promise<string> {
+  const file = `${dir}/${hashText(source)}.pele-${PELE_VERSION}.svg`
+  if (!(await $.fs.exists(file))) await $.fs.write(file, peleSvg(source))
+
+  return file
+}
+
+/** A PNG of the diagram: pele's SVG through resvg or rsvg-convert, or mmdc when neither is installed. */
+async function renderPng($: Engine, dir: string, source: string, rasterizer: Rasterizer | null): Promise<DiagramRender> {
+  const id = hashText(source)
+  let output: string
+  let tool: string
+  if (rasterizer !== null) {
+    tool = rasterizer
+    output = `${dir}/${id}.pele-${PELE_VERSION}.png`
+    if (!(await $.fs.exists(output))) {
+      const input = await peleFile($, dir, source)
+      const ran = await $.process.run(rasterArgv(rasterizer, input, output), { timeoutMs: 30_000 })
+      if (ran.exitCode !== 0) return failed(rasterizer, ran)
+    }
+  } else {
+    tool = 'mmdc'
+    output = `${dir}/${id}.png`
+    // Named by content, so an output an earlier session made is reused rather than drawn again.
+    if (!(await $.fs.exists(output))) {
+      const input = `${dir}/${id}.png.mmd`
+      await $.fs.write(input, source)
+      const ran = await $.process.run(
+        ['mmdc', '-q', '-i', input, '-o', output, '-b', 'white', '-s', '2'],
+        { timeoutMs: 90_000 },
+      )
+      if (ran.exitCode !== 0) return failed('mmdc', ran)
+    }
+  }
+  const { base64 } = await $.fs.read(output, { as: 'bytes' })
+  const size = pngSize(base64)
+
+  return size === null ? { format: 'error', message: `${tool} wrote no PNG.` } : { format: 'png', file: output, ...size }
+}
+
+async function renderDiagram(
+  $: Engine,
+  source: string,
+  format: InlineFormat,
+  found: Renderers | null,
+): Promise<DiagramRender> {
   try {
     if (format === 'ascii') {
       const ran = await $.process.run(['mermaid-ascii'], { stdin: asciiSource(source), timeoutMs: 20_000 })
       return ran.exitCode === 0 ? { format: 'ascii', text: stripAnsi(ran.stdout).trimEnd() } : failed('mermaid-ascii', ran)
     }
     const dir = await cacheDir($)
-    const id = hashText(source)
-    const output = `${dir}/${id}.${format}`
-    // Named by content, so an output an earlier session made is reused rather than drawn again.
-    if (!(await $.fs.exists(output))) {
-      const input = `${dir}/${id}.${format}.mmd`
-      await $.fs.write(input, source)
-      const scale = format === 'png' ? ['-s', '2'] : []
-      const ran = await $.process.run(
-        ['mmdc', '-q', '-i', input, '-o', output, '-b', 'white', ...scale],
-        { timeoutMs: 90_000 },
-      )
-      if (ran.exitCode !== 0) return failed('mmdc', ran)
-    }
-    if (format === 'svg') {
-      const stat = await $.fs.stat(output)
-      return stat.size > MAX_SVG
-        ? { format: 'error', message: `Too large to draw inline: ${BROWSER_HINT}` }
-        : { format: 'svg', file: output }
-    }
-    const { base64 } = await $.fs.read(output, { as: 'bytes' })
-    const size = pngSize(base64)
+    if (format === 'png') return await renderPng($, dir, source, found?.rasterizer ?? null)
 
-    return size === null
-      ? { format: 'error', message: 'mmdc wrote no PNG.' }
-      : { format: 'png', file: output, ...size }
+    const output = await peleFile($, dir, source)
+    const stat = await $.fs.stat(output)
+    return stat.size > MAX_SVG
+      ? { format: 'error', message: `Too large to draw inline: ${BROWSER_HINT}` }
+      : { format: 'svg', file: output }
   } catch (err) {
     return { format: 'error', message: errorText(err) }
   }
@@ -415,8 +449,9 @@ async function renderJob($: Engine, { format, source }: RenderJob): Promise<void
   if (rendering.has(key)) return
   rendering.add(key)
   try {
-    if ((await read($, renders))[key] !== undefined) return
-    const result = await renderDiagram($, source, format)
+    const [done, found] = await Promise.all([read($, renders), read($, renderers)])
+    if (done[key] !== undefined) return
+    const result = await renderDiagram($, source, format, found)
     await update($, renders, all => pruneRenders({ ...withoutKey(all, key), [key]: result }))
   } finally {
     rendering.delete(key)
@@ -444,9 +479,11 @@ async function canRun($: Engine, argv: string[]): Promise<boolean> {
 }
 
 async function detectRenderers($: Engine): Promise<void> {
-  const [ascii, mmdc, term, program, kittyWindow, ghostty] = await Promise.all([
+  const [ascii, mmdc, resvg, rsvg, term, program, kittyWindow, ghostty] = await Promise.all([
     canRun($, ['mermaid-ascii', '--help']),
     canRun($, ['mmdc', '--version']),
+    canRun($, ['resvg', '--version']),
+    canRun($, ['rsvg-convert', '--version']),
     $.env.get('TERM'),
     $.env.get('TERM_PROGRAM'),
     $.env.get('KITTY_WINDOW_ID'),
@@ -457,7 +494,8 @@ async function detectRenderers($: Engine): Promise<void> {
     /kitty|ghostty/i.test(program ?? '') ||
     kittyWindow !== undefined ||
     ghostty !== undefined
-  const found: Renderers = { ascii, mmdc, isKitty }
+  const rasterizer: Rasterizer | null = resvg ? 'resvg' : rsvg ? 'rsvg-convert' : null
+  const found: Renderers = { ascii, mmdc, rasterizer, isKitty }
   await update($, renderers, () => found)
   ensureRenders($)
 }
@@ -809,7 +847,7 @@ async function renderDoc($: Engine, ctx: PaneContext, v: DocTarget): Promise<Ren
     <Text dimColor wrap="truncate-start">{meta}</Text>,
     diagramCount > 0 && format === null && (
       <Text dimColor>
-        {'Diagrams show as source here. Press b for the browser, or install mermaid-ascii (terminal) or mmdc to draw them inline.'}
+        {'Diagrams show as source here. Press b for the browser, or install mermaid-ascii (or resvg, on kitty and Ghostty) to draw them inline.'}
       </Text>
     ),
     blocks.map(block => {

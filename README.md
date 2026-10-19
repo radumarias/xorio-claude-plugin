@@ -136,7 +136,7 @@ Mods are plugins built on Claude Code's function-hooks API (early access). They 
 
 | Mod | Install | Purpose |
 |-----|---------|---------|
-| [`doc-preview`](mods/doc-preview/README.md) | `/plugin install doc-preview@xorio` | Preview Markdown and Mermaid in a side panel: `/xorio:preview [path]` with a file picker, plus a one-key band for the docs, plans and diagrams Claude writes. Diagrams render in the browser, or inline with `mermaid-ascii` / `mmdc` installed |
+| [`doc-preview`](mods/doc-preview/README.md) | `/plugin install doc-preview@xorio` | Preview Markdown and Mermaid in a side panel: `/xorio:preview [path]` with a file picker, plus a one-key band for the docs, plans and diagrams Claude writes. Diagrams are drawn by pele: SVG in the desktop app and VS Code, PNG on kitty/Ghostty with `resvg` installed, text with `mermaid-ascii`, and in the browser |
 
 ## Installation
 

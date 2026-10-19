@@ -20,8 +20,15 @@ export type DiagramRender =
 /** The pane size asked for: body columns (null, the engine's default) or the whole screen. */
 export type PaneSize = { columns: number | null; isFull: boolean }
 
-/** Which inline renderers this machine has, and whether the terminal draws pixels. */
-export type Renderers = { ascii: boolean; mmdc: boolean; isKitty: boolean }
+/** A command that turns pele's SVG into a PNG for the terminal. */
+export type Rasterizer = 'resvg' | 'rsvg-convert'
+
+/**
+ * Which inline renderers this machine has, and whether the terminal draws
+ * pixels. Pele, vendored in the mod, draws SVG everywhere; `rasterizer` makes
+ * PNGs of it, and `mmdc` is the fallback when there is none.
+ */
+export type Renderers = { ascii: boolean; mmdc: boolean; rasterizer: Rasterizer | null; isKitty: boolean }
 
 declare module 'claude-code' {
   interface PluginState {

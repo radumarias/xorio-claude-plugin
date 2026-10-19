@@ -11,12 +11,16 @@ import {
   textChart,
   diagramTitle,
   expandPath,
+  flattenPeleSvg,
   formatFor,
   imageBox,
   inlineRuns,
   layoutColumns,
   pngSize,
+  PELE_VERSION,
+  peleSvg,
   previewHtml,
+  rasterArgv,
   rendererError,
   splitDoc,
   stripAnsi,
@@ -272,13 +276,51 @@ describe('rendering helpers', () => {
   })
 
   test('formatFor picks pixels, text or nothing per surface', () => {
-    const all = { ascii: true, mmdc: true, isKitty: false }
+    const all = { ascii: true, mmdc: false, rasterizer: 'resvg' as const, isKitty: false }
     expect(formatFor('terminal', { ...all, isKitty: true })).toBe('png')
+    expect(formatFor('terminal', { ...all, isKitty: true, rasterizer: null, mmdc: true })).toBe('png')
+    expect(formatFor('terminal', { ...all, isKitty: true, rasterizer: null })).toBe('ascii')
     expect(formatFor('terminal', all)).toBe('ascii')
     expect(formatFor('terminal', { ...all, ascii: false })).toBeNull()
-    expect(formatFor('desktop', all)).toBe('svg')
-    expect(formatFor('desktop', { ...all, mmdc: false })).toBe('ascii')
     expect(formatFor('terminal', null)).toBeNull()
+    // Pele is built in: the GUI surfaces draw SVG whatever is installed.
+    expect(formatFor('desktop', { ...all, rasterizer: null })).toBe('svg')
+    expect(formatFor('vscode', null)).toBe('svg')
+  })
+})
+
+describe('pele', () => {
+  test('peleSvg draws every kind as one self-contained SVG, no CSS variables left', () => {
+    const kinds = [
+      'flowchart LR\n  A[Start] --> B{ok?}\n  B -->|yes| C[Done]',
+      'sequenceDiagram\n  Alice->>Bob: hi\n  Bob-->>Alice: hello',
+      'classDiagram\n  Animal <|-- Duck',
+      'stateDiagram-v2\n  [*] --> Idle\n  Idle --> [*]',
+      'erDiagram\n  USER ||--o{ ORDER : places',
+      'pie title Pets\n  "Dogs" : 3\n  "Cats" : 2',
+      'gantt\n  dateFormat YYYY-MM-DD\n  section A\n  Task :a1, 2026-01-01, 3d',
+      'mindmap\n  root((x))\n    a\n    b',
+    ]
+    for (const source of kinds) {
+      const svg = peleSvg(source)
+      expect(svg.startsWith('<svg')).toBe(true)
+      expect(svg.includes('var(')).toBe(false)
+      expect(svg.includes('<rect width="100%" height="100%" fill="#ffffff"/>')).toBe(true)
+    }
+  })
+
+  test('flattenPeleSvg resolves both levels of variables, theme first, then the fallback', () => {
+    const svg = '<svg style="--_fg:var(--pele-fg,#111);--_r:var(--pele-radius,4px);font-family:var(--pele-font,sans-serif)" fill="var(--_fg)"><rect rx="var(--_r)"/></svg>'
+    expect(flattenPeleSvg(svg, { fg: '#abc' })).toBe('<svg style="font-family:sans-serif" fill="#abc"><rect rx="4px"/></svg>')
+  })
+
+  test('peleSvg throws on a diagram it cannot read', () => {
+    expect(() => peleSvg('not a diagram at all')).toThrow()
+  })
+
+  test('rasterArgv doubles the size with either tool', () => {
+    expect(rasterArgv('resvg', '/c/a.svg', '/c/a.png')).toEqual(['resvg', '--zoom', '2', '/c/a.svg', '/c/a.png'])
+    expect(rasterArgv('rsvg-convert', '/c/a.svg', '/c/a.png')).toEqual(['rsvg-convert', '--zoom', '2', '--output', '/c/a.png', '/c/a.svg'])
   })
 })
 
@@ -288,5 +330,11 @@ describe('previewHtml', () => {
     expect(html.includes('</script><script>alert(1)')).toBe(false)
     expect(html.includes('\\u003c/script>')).toBe(true)
     expect(html.includes('<title>&#60;b&#62;x&#60;/b&#62;</title>')).toBe(true)
+  })
+
+  test('draws diagrams with the pinned pele build, not mermaid.js', () => {
+    const html = previewHtml({ title: 't', source: 'graph TD\n  A-->B', isMermaid: true })
+    expect(html.includes(`npm/pele@${PELE_VERSION}/dist/pele.global.js" integrity="sha384-`)).toBe(true)
+    expect(html.includes('mermaid.min.js')).toBe(false)
   })
 })
