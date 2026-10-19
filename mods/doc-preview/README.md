@@ -7,6 +7,24 @@ A Claude Code **mod** (a plugin of function hooks) that previews Markdown and Me
 
 ## Screenshots
 
+### Diagrams as images in kitty and Ghostty
+
+Taken from a real Claude Code 2.1.303 session in kitty, with `resvg` installed: pele draws each diagram as SVG inside the mod and `resvg` turns it into the PNG the terminal shows.
+
+`/xorio:preview examples/sample.md` opens the panel beside the conversation:
+
+![Claude Code's conversation on the left, the doc-preview panel on the right with the sample doc's flowchart and sequence diagram drawn as images](docs/kitty-pane.png)
+
+In full screen (`z`) the diagrams get the room:
+
+![The panel in full screen with the flowchart and the start of the sequence diagram drawn as images](docs/kitty-full.png)
+
+**Scrolled down:** an ER and a state diagram, then a gantt and a pie chart, all drawn by pele:
+
+![Two panel screens side by side: an ER diagram and a state diagram, then a gantt chart, a pie chart and the fitted table](docs/kitty-diagrams.png)
+
+### Diagrams as text in other terminals
+
 Taken from real sessions in a 200-column terminal, with `mermaid-ascii` installed.
 
 ### Previewing what Claude writes
