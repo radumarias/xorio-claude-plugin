@@ -24,11 +24,12 @@ export type PaneSize = { columns: number | null; isFull: boolean }
 export type Rasterizer = 'resvg' | 'rsvg-convert'
 
 /**
- * Which inline renderers this machine has, and whether the terminal draws
- * pixels. Pele, vendored in the mod, draws SVG everywhere; `rasterizer` makes
- * PNGs of it in `scheme`'s colors, and `mmdc` is the fallback when there is none.
+ * Which inline renderers this machine has, whether the terminal draws images
+ * (kitty, Ghostty, or `DOC_PREVIEW_IMAGES=1`), and the colors to draw them in.
+ * Pele, vendored in the mod, draws SVG everywhere; `rasterizer` makes PNGs of
+ * it in `scheme`'s colors, and `mmdc` is the fallback when there is none.
  */
-export type Renderers = { ascii: boolean; mmdc: boolean; rasterizer: Rasterizer | null; isKitty: boolean; scheme: Scheme }
+export type Renderers = { ascii: boolean; mmdc: boolean; rasterizer: Rasterizer | null; drawsImages: boolean; scheme: Scheme }
 
 /** Which colors the terminal's PNGs are drawn in, from Claude Code's theme. */
 export type Scheme = 'light' | 'dark'
