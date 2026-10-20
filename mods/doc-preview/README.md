@@ -25,6 +25,8 @@ Taken from a real Claude Code 2.1.303 session in kitty, with `resvg` installed: 
 
 ### Diagrams as text in other terminals
 
+Claude Code draws images only in terminals that support kitty's Unicode placeholder images (kitty and Ghostty today). In other terminals, Warp, iTerm2 and WezTerm among them, it draws an image's alt text, so the pane draws the diagrams as text there. To try images in a terminal that isn't detected, start Claude Code with `DOC_PREVIEW_IMAGES=1`. With `DOC_PREVIEW_IMAGES=0` the pane draws text everywhere. Either way, "open in browser" shows every diagram drawn in full.
+
 Taken from real sessions in a 200-column terminal, with `mermaid-ascii` installed.
 
 ### Previewing what Claude writes
