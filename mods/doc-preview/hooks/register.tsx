@@ -49,6 +49,7 @@ import {
   tableAsList,
   tableLines,
   textChart,
+  toolDirs,
 } from './docs'
 import type { InlineFormat, Run, TableLine } from './docs'
 
@@ -100,6 +101,12 @@ const FALLBACK_COMMAND = 'preview'
 const MAX_RECENT = 20
 const MAX_RENDERS = 40
 const MAX_ENTRIES = 300
+/**
+ * Where detection found each tool PATH doesn't have, by name: an app started
+ * from the desktop (VS Code) often runs with a shorter PATH than a shell.
+ */
+const toolPaths = new Map<string, string>()
+
 /** Renders running at once across all passes: an mmdc run starts a headless browser. */
 const RENDER_CONCURRENCY = 3
 const POLL_MS = 2000
@@ -354,7 +361,7 @@ async function runMmdc($: Engine, dir: string, source: string, scheme: Scheme, o
   await $.fs.write(input, source)
   const colors = [...(scheme === 'dark' ? ['-t', 'dark'] : []), '-b', PELE_THEMES[scheme].bg]
 
-  return $.process.run(['mmdc', '-q', '-i', input, '-o', output, ...colors, '-s', '2'], { timeoutMs: 90_000 })
+  return runTool($, ['mmdc', '-q', '-i', input, '-o', output, ...colors, '-s', '2'], { timeoutMs: 90_000 })
 }
 
 /** A PNG of the diagram in the scheme's colors: pele's SVG through resvg or rsvg-convert, or mmdc when neither is installed. */
@@ -366,7 +373,7 @@ async function renderPng($: Engine, dir: string, { source, scheme, rasterizer }:
     const ran =
       rasterizer === null || svg === null
         ? await runMmdc($, dir, source, scheme, output)
-        : await $.process.run(rasterArgv(rasterizer, await peleFile($, dir, svg), output), { timeoutMs: 30_000 })
+        : await runTool($, rasterArgv(rasterizer, await peleFile($, dir, svg), output), { timeoutMs: 30_000 })
     if (ran.exitCode !== 0) return failed(tool, ran)
   }
   const { base64 } = await $.fs.read(output, { as: 'bytes' })
@@ -379,7 +386,7 @@ async function renderDiagram($: Engine, job: RenderJob): Promise<DiagramRender> 
   const { format, source } = job
   try {
     if (format === 'ascii') {
-      const ran = await $.process.run(['mermaid-ascii'], { stdin: asciiSource(source), timeoutMs: 20_000 })
+      const ran = await runTool($, ['mermaid-ascii'], { stdin: asciiSource(source), timeoutMs: 20_000 })
       return ran.exitCode === 0 ? { format: 'ascii', text: stripAnsi(ran.stdout).trimEnd() } : failed('mermaid-ascii', ran)
     }
     const dir = await cacheDir($)
@@ -486,6 +493,25 @@ async function canRun($: Engine, argv: string[]): Promise<boolean> {
   }
 }
 
+/** Runs a tool from where detection found it, else by name. */
+function runTool($: Engine, [name = '', ...args]: string[], options: { stdin?: string; timeoutMs: number }) {
+  return $.process.run([toolPaths.get(name) ?? name, ...args], options)
+}
+
+/** Whether a tool runs, by name or from one of `dirs`; where it ran is kept for `runTool`. */
+async function findTool($: Engine, name: string, flag: string, dirs: string[]): Promise<boolean> {
+  toolPaths.delete(name)
+  for (const dir of [null, ...dirs]) {
+    const command = dir === null ? name : `${dir}/${name}`
+    if (await canRun($, [command, flag])) {
+      if (dir !== null) toolPaths.set(name, command)
+      return true
+    }
+  }
+
+  return false
+}
+
 /**
  * Light or dark for the terminal's PNGs, from Claude Code's theme setting:
  * the value given (a change being made), else the one `/config` holds.
@@ -522,17 +548,19 @@ async function detectRenderers($: Engine): Promise<void> {
     $.env.get('DOC_PREVIEW_IMAGES'),
   ])
   const drawsImages = drawsImagesIn({ term, program, kittyWindow, ghostty, forced })
+  const [home, gopath] = await Promise.all([$.env.get('HOME'), $.env.get('GOPATH')])
+  const dirs = toolDirs(home, gopath)
   // The PNG tools are probed only where images are drawn, and mmdc (it starts Node)
   // only when neither rasterizer is installed.
-  const pixels = (argv: string[]) => (drawsImages ? canRun($, argv) : Promise.resolve(false))
+  const pixels = (name: string) => (drawsImages ? findTool($, name, '--version', dirs) : Promise.resolve(false))
   const [ascii, resvg, rsvg, scheme] = await Promise.all([
-    canRun($, ['mermaid-ascii', '--help']),
-    pixels(['resvg', '--version']),
-    pixels(['rsvg-convert', '--version']),
+    findTool($, 'mermaid-ascii', '--help', dirs),
+    pixels('resvg'),
+    pixels('rsvg-convert'),
     currentScheme($),
   ])
   const rasterizer: Rasterizer | null = resvg ? 'resvg' : rsvg ? 'rsvg-convert' : null
-  const mmdc = rasterizer === null && (await pixels(['mmdc', '--version']))
+  const mmdc = rasterizer === null && (await pixels('mmdc'))
   await update($, renderers, () => ({ ascii, mmdc, rasterizer, drawsImages, scheme }))
   ensureRenders($)
 }
