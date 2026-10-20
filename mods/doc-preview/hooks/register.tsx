@@ -523,17 +523,22 @@ async function followTheme($: Engine, theme: ConfigValue): Promise<void> {
 }
 
 async function detectRenderers($: Engine): Promise<void> {
-  const [term, program, kittyWindow, ghostty] = await Promise.all([
+  const [term, program, kittyWindow, ghostty, forced] = await Promise.all([
     $.env.get('TERM'),
     $.env.get('TERM_PROGRAM'),
     $.env.get('KITTY_WINDOW_ID'),
     $.env.get('GHOSTTY_RESOURCES_DIR'),
+    $.env.get('DOC_PREVIEW_IMAGES'),
   ])
+  // `DOC_PREVIEW_IMAGES=1` tries images in a terminal not listed here; Claude Code
+  // still draws the alt text where it can't show them. `0` keeps text everywhere.
   const isKitty =
-    /kitty|ghostty/i.test(term ?? '') ||
-    /kitty|ghostty/i.test(program ?? '') ||
-    kittyWindow !== undefined ||
-    ghostty !== undefined
+    forced === '1' ||
+    (forced !== '0' &&
+      (/kitty|ghostty/i.test(term ?? '') ||
+        /kitty|ghostty/i.test(program ?? '') ||
+        kittyWindow !== undefined ||
+        ghostty !== undefined))
   // The PNG tools serve only kitty and Ghostty: elsewhere they aren't probed (mmdc starts Node).
   const pixels = (argv: string[]) => (isKitty ? canRun($, argv) : Promise.resolve(false))
   const [ascii, mmdc, resvg, rsvg, scheme] = await Promise.all([
