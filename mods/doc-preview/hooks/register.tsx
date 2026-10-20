@@ -16,7 +16,6 @@ import {
   MAX_SVG,
   PANE,
   PELE_THEMES,
-  PELE_VERSION,
   asciiSource,
   baseName,
   countOf,
@@ -66,7 +65,8 @@ type DrawnBlock =
   | { kind: 'table'; lines: TableLine[] | null; list: string }
   | { kind: 'mermaid'; source: string; title: string; type: string; isText: boolean; chart: string | null; key: string | null }
 type Listing = { entries: SelectOption[]; total: number } | { error: string }
-type RenderJob = { format: InlineFormat; source: string; scheme: Scheme }
+/** `scheme` and `rasterizer` say how a PNG is drawn; only `scheme` is in its key. */
+type RenderJob = { format: InlineFormat; source: string; scheme: Scheme; rasterizer: Rasterizer | null }
 /** What both pane views draw with: the surface's elements, the room, and the state they read. */
 type PaneContext = {
   el: ElementTable
@@ -336,52 +336,42 @@ const failed = (tool: string, ran: { exitCode: number; stdout: string; stderr: s
 })
 
 /**
- * Pele's SVG for the diagram in one scheme, or adaptive for the GUI surfaces,
- * written once to the cache: named by content, pele's version and the colors,
- * so an earlier session's drawing is reused and an update redraws.
+ * A drawing of pele's, written to the cache under a hash of the SVG itself: a
+ * change to pele, its palette or its fonts names a new file, and an unchanged
+ * drawing is reused across sessions.
  */
-async function peleFile($: Engine, dir: string, source: string, colors: Scheme | 'adaptive'): Promise<string> {
-  const file = `${dir}/${hashText(source)}.pele-${PELE_VERSION}.${colors}.svg`
-  if (!(await $.fs.exists(file))) {
-    await $.fs.write(file, colors === 'adaptive' ? peleSvgAdaptive(source) : peleSvg(source, colors))
-  }
+async function peleFile($: Engine, dir: string, svg: string): Promise<string> {
+  const file = `${dir}/${hashText(svg)}.svg`
+  if (!(await $.fs.exists(file))) await $.fs.write(file, svg)
 
   return file
 }
 
 /** A PNG of the diagram in the scheme's colors: pele's SVG through resvg or rsvg-convert, or mmdc when neither is installed. */
-async function renderPng(
-  $: Engine,
-  dir: string,
-  source: string,
-  scheme: Scheme,
-  rasterizer: Rasterizer | null,
-): Promise<DiagramRender> {
+async function renderPng($: Engine, dir: string, { source, scheme, rasterizer }: RenderJob): Promise<DiagramRender> {
   const id = hashText(source)
-  let output: string
-  let tool: string
-  if (rasterizer !== null) {
-    tool = rasterizer
-    output = `${dir}/${id}.pele-${PELE_VERSION}.${scheme}.png`
-    if (!(await $.fs.exists(output))) {
-      const input = await peleFile($, dir, source, scheme)
-      const ran = await $.process.run(rasterArgv(rasterizer, input, output), { timeoutMs: 30_000 })
-      if (ran.exitCode !== 0) return failed(rasterizer, ran)
-    }
-  } else {
-    tool = 'mmdc'
-    output = `${dir}/${id}.${scheme}.png`
-    // Named by content, so an output an earlier session made is reused rather than drawn again.
-    if (!(await $.fs.exists(output))) {
-      const input = `${dir}/${id}.png.mmd`
-      await $.fs.write(input, source)
-      const colors = [...(scheme === 'dark' ? ['-t', 'dark'] : []), '-b', PELE_THEMES[scheme].bg]
-      const ran = await $.process.run(
-        ['mmdc', '-q', '-i', input, '-o', output, ...colors, '-s', '2'],
-        { timeoutMs: 90_000 },
-      )
-      if (ran.exitCode !== 0) return failed('mmdc', ran)
-    }
+  const svg = rasterizer === null ? '' : peleSvg(source, scheme)
+  const { tool, output, draw } =
+    rasterizer !== null
+      ? {
+          tool: rasterizer,
+          output: `${dir}/${hashText(svg)}.png`,
+          draw: async (out: string) =>
+            $.process.run(rasterArgv(rasterizer, await peleFile($, dir, svg), out), { timeoutMs: 30_000 }),
+        }
+      : {
+          tool: 'mmdc',
+          output: `${dir}/${id}.mmdc.${scheme}.png`,
+          draw: async (out: string) => {
+            const input = `${dir}/${id}.mmd`
+            await $.fs.write(input, source)
+            const colors = [...(scheme === 'dark' ? ['-t', 'dark'] : []), '-b', PELE_THEMES[scheme].bg]
+            return $.process.run(['mmdc', '-q', '-i', input, '-o', out, ...colors, '-s', '2'], { timeoutMs: 90_000 })
+          },
+        }
+  if (!(await $.fs.exists(output))) {
+    const ran = await draw(output)
+    if (ran.exitCode !== 0) return failed(tool, ran)
   }
   const { base64 } = await $.fs.read(output, { as: 'bytes' })
   const size = pngSize(base64)
@@ -389,24 +379,20 @@ async function renderPng(
   return size === null ? { format: 'error', message: `${tool} wrote no PNG.` } : { format: 'png', file: output, ...size }
 }
 
-async function renderDiagram(
-  $: Engine,
-  { format, source, scheme }: RenderJob,
-  rasterizer: Rasterizer | null,
-): Promise<DiagramRender> {
+async function renderDiagram($: Engine, job: RenderJob): Promise<DiagramRender> {
+  const { format, source } = job
   try {
     if (format === 'ascii') {
       const ran = await $.process.run(['mermaid-ascii'], { stdin: asciiSource(source), timeoutMs: 20_000 })
       return ran.exitCode === 0 ? { format: 'ascii', text: stripAnsi(ran.stdout).trimEnd() } : failed('mermaid-ascii', ran)
     }
     const dir = await cacheDir($)
-    if (format === 'png') return await renderPng($, dir, source, scheme, rasterizer)
+    if (format === 'png') return await renderPng($, dir, job)
 
-    const output = await peleFile($, dir, source, 'adaptive')
-    const stat = await $.fs.stat(output)
-    return stat.size > MAX_SVG
+    const svg = peleSvgAdaptive(source)
+    return svg.length > MAX_SVG
       ? { format: 'error', message: `Too large to draw inline: ${BROWSER_HINT}` }
-      : { format: 'svg', file: output }
+      : { format: 'svg', file: await peleFile($, dir, svg) }
   } catch (err) {
     return { format: 'error', message: errorText(err) }
   }
@@ -439,8 +425,11 @@ async function renderShown($: Engine): Promise<void> {
 
   const sources = mermaidSources(doc.source, doc.isMermaid)
   const scheme = found?.scheme ?? 'dark'
+  const rasterizer = found?.rasterizer ?? null
   const jobs = [...formats].flatMap(format =>
-    sources.filter(source => !(format === 'ascii' && isTextChart(source))).map(source => ({ format, source, scheme })),
+    sources
+      .filter(source => !(format === 'ascii' && isTextChart(source)))
+      .map(source => ({ format, source, scheme, rasterizer })),
   )
   needed = new Set(jobs.map(jobKey))
   // The queue holds only the shown doc's jobs: a doc no longer shown doesn't keep the
@@ -470,9 +459,9 @@ async function renderJob($: Engine, job: RenderJob): Promise<void> {
   if (rendering.has(key)) return
   rendering.add(key)
   try {
-    const [done, found] = await Promise.all([read($, renders), read($, renderers)])
+    const done = await read($, renders)
     if (done[key] !== undefined) return
-    const result = await renderDiagram($, job, found?.rasterizer ?? null)
+    const result = await renderDiagram($, job)
     await update($, renders, all => pruneRenders({ ...withoutKey(all, key), [key]: result }))
   } finally {
     rendering.delete(key)
@@ -532,24 +521,25 @@ async function detectRenderers($: Engine): Promise<void> {
   ])
   // `DOC_PREVIEW_IMAGES=1` tries images in a terminal not listed here; Claude Code
   // still draws the alt text where it can't show them. `0` keeps text everywhere.
-  const isKitty =
+  const drawsImages =
     forced === '1' ||
     (forced !== '0' &&
       (/kitty|ghostty/i.test(term ?? '') ||
         /kitty|ghostty/i.test(program ?? '') ||
         kittyWindow !== undefined ||
         ghostty !== undefined))
-  // The PNG tools serve only kitty and Ghostty: elsewhere they aren't probed (mmdc starts Node).
-  const pixels = (argv: string[]) => (isKitty ? canRun($, argv) : Promise.resolve(false))
-  const [ascii, mmdc, resvg, rsvg, scheme] = await Promise.all([
+  // The PNG tools are probed only where images are drawn, and mmdc (it starts Node)
+  // only when neither rasterizer is installed.
+  const pixels = (argv: string[]) => (drawsImages ? canRun($, argv) : Promise.resolve(false))
+  const [ascii, resvg, rsvg, scheme] = await Promise.all([
     canRun($, ['mermaid-ascii', '--help']),
-    pixels(['mmdc', '--version']),
     pixels(['resvg', '--version']),
     pixels(['rsvg-convert', '--version']),
     currentScheme($),
   ])
   const rasterizer: Rasterizer | null = resvg ? 'resvg' : rsvg ? 'rsvg-convert' : null
-  await update($, renderers, () => ({ ascii, mmdc, rasterizer, isKitty, scheme }))
+  const mmdc = rasterizer === null && (await pixels(['mmdc', '--version']))
+  await update($, renderers, () => ({ ascii, mmdc, rasterizer, drawsImages, scheme }))
   ensureRenders($)
 }
 

@@ -717,7 +717,7 @@ export function pngSize(base64: string): { width: number; height: number } | nul
   return { width: u32(16), height: u32(20) }
 }
 
-/** Terminal cells for a picture: about 16 px a column at mmdc's scale 2, cells twice as tall as wide. */
+/** Terminal cells for a picture: about 16 px a column at the renderers' 2x scale, cells twice as tall as wide. */
 export function imageBox(
   size: { width: number; height: number },
   maxColumns: number,
@@ -736,7 +736,7 @@ export function imageBox(
 export function formatFor(surface: string, renderers: Renderers | null): InlineFormat | null {
   if (surface !== 'terminal') return 'svg'
   if (renderers === null) return null
-  if (renderers.isKitty && (renderers.rasterizer !== null || renderers.mmdc)) return 'png'
+  if (renderers.drawsImages && (renderers.rasterizer !== null || renderers.mmdc)) return 'png'
 
   return renderers.ascii ? 'ascii' : null
 }
@@ -815,8 +815,8 @@ export function flattenPeleSvg(svg: string, theme: Partial<Record<string, string
  */
 const PELE_FONTS = "Helvetica, Arial, 'Segoe UI', 'DejaVu Sans', 'Liberation Sans', 'Noto Sans', sans-serif"
 
-const drawPele = (source: string): string =>
-  peleRender(source, { fontFamily: PELE_FONTS, links: false, images: false })
+const drawPele = (source: string, fontFamily?: string): string =>
+  peleRender(source, { fontFamily, links: false, images: false })
     // The initial values, which resvg warns it can't parse.
     .svg.replace(/(letter|word)-spacing:normal;?/g, '')
 
@@ -832,7 +832,7 @@ const withGround = (svg: string, fill: string): string =>
  * variables resolved, for a rasterizer; throws on syntax pele can't read.
  */
 export function peleSvg(source: string, scheme: Scheme): string {
-  return withGround(flattenPeleSvg(drawPele(source), PELE_THEMES[scheme]), PELE_THEMES[scheme].bg)
+  return withGround(flattenPeleSvg(drawPele(source, PELE_FONTS), PELE_THEMES[scheme]), PELE_THEMES[scheme].bg)
 }
 
 /**

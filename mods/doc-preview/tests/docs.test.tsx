@@ -280,10 +280,10 @@ describe('rendering helpers', () => {
   })
 
   test('formatFor picks pixels, text or nothing per surface', () => {
-    const all = { ascii: true, mmdc: false, rasterizer: 'resvg' as const, isKitty: false, scheme: 'dark' as const }
-    expect(formatFor('terminal', { ...all, isKitty: true })).toBe('png')
-    expect(formatFor('terminal', { ...all, isKitty: true, rasterizer: null, mmdc: true })).toBe('png')
-    expect(formatFor('terminal', { ...all, isKitty: true, rasterizer: null })).toBe('ascii')
+    const all = { ascii: true, mmdc: false, rasterizer: 'resvg' as const, drawsImages: false, scheme: 'dark' as const }
+    expect(formatFor('terminal', { ...all, drawsImages: true })).toBe('png')
+    expect(formatFor('terminal', { ...all, drawsImages: true, rasterizer: null, mmdc: true })).toBe('png')
+    expect(formatFor('terminal', { ...all, drawsImages: true, rasterizer: null })).toBe('ascii')
     expect(formatFor('terminal', all)).toBe('ascii')
     expect(formatFor('terminal', { ...all, ascii: false })).toBeNull()
     expect(formatFor('terminal', null)).toBeNull()
