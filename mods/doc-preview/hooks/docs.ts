@@ -730,13 +730,15 @@ export function imageBox(
 
 /**
  * Which inline format a surface gets, or null to show the diagram's source.
- * Desktop and VS Code always get SVG: pele draws it inside the mod. The
- * terminal gets a PNG where it draws pixels and something can rasterize.
+ * The desktop and mobile apps always get SVG: pele draws it inside the mod.
+ * VS Code declares Svg but its panel draws only the alt text (2.1.304), so it
+ * gets text like a terminal. The terminal gets a PNG where it draws pixels and
+ * something can rasterize.
  */
 export function formatFor(surface: string, renderers: Renderers | null): InlineFormat | null {
-  if (surface !== 'terminal') return 'svg'
+  if (surface !== 'terminal' && surface !== 'vscode') return 'svg'
   if (renderers === null) return null
-  if (renderers.drawsImages && (renderers.rasterizer !== null || renderers.mmdc)) return 'png'
+  if (surface === 'terminal' && renderers.drawsImages && (renderers.rasterizer !== null || renderers.mmdc)) return 'png'
 
   return renderers.ascii ? 'ascii' : null
 }
@@ -843,7 +845,7 @@ export function peleSvg(source: string, scheme: Scheme): string {
 }
 
 /**
- * The same, for a surface that shows SVG (desktop, VS Code): light colors,
+ * The same, for a surface that shows SVG (the desktop and mobile apps): light colors,
  * turned dark by a `prefers-color-scheme` rule, so the image follows the
  * app's own theme as it changes; throws on syntax pele can't read.
  */
