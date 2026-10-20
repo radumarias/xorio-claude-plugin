@@ -25,7 +25,7 @@ export type Rasterizer = 'resvg' | 'rsvg-convert'
 
 /**
  * Which inline renderers this machine has, whether the terminal draws images
- * (kitty, Ghostty, or `DOC_PREVIEW_IMAGES=1`), and the colors to draw them in.
+ * (kitty, Ghostty, or `DOC_PREVIEW_IMAGES=1`; see `drawsImagesIn`), and the colors to draw them in.
  * Pele, vendored in the mod, draws SVG everywhere; `rasterizer` makes PNGs of
  * it in `scheme`'s colors, and `mmdc` is the fallback when there is none.
  */

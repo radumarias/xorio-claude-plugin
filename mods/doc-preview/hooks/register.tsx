@@ -22,6 +22,7 @@ import {
   diagramKind,
   diagramTitle,
   displayPath,
+  drawsImagesIn,
   errorText,
   expandPath,
   firstLine,
@@ -520,15 +521,7 @@ async function detectRenderers($: Engine): Promise<void> {
     $.env.get('GHOSTTY_RESOURCES_DIR'),
     $.env.get('DOC_PREVIEW_IMAGES'),
   ])
-  // `DOC_PREVIEW_IMAGES=1` tries images in a terminal not listed here; Claude Code
-  // still draws the alt text where it can't show them. `0` keeps text everywhere.
-  const drawsImages =
-    forced === '1' ||
-    (forced !== '0' &&
-      (/kitty|ghostty/i.test(term ?? '') ||
-        /kitty|ghostty/i.test(program ?? '') ||
-        kittyWindow !== undefined ||
-        ghostty !== undefined))
+  const drawsImages = drawsImagesIn({ term, program, kittyWindow, ghostty, forced })
   // The PNG tools are probed only where images are drawn, and mmdc (it starts Node)
   // only when neither rasterizer is installed.
   const pixels = (argv: string[]) => (drawsImages ? canRun($, argv) : Promise.resolve(false))
