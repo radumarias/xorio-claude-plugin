@@ -14,6 +14,7 @@ import {
   flattenPeleSvg,
   drawsImagesIn,
   formatFor,
+  toolDirs,
   imageBox,
   inlineRuns,
   layoutColumns,
@@ -290,6 +291,21 @@ describe('rendering helpers', () => {
     expect(drawsImagesIn({ term: 'xterm-256color' })).toBe(false)
     expect(drawsImagesIn({ program: 'vscode', forced: '1' })).toBe(true)
     expect(drawsImagesIn({ term: 'xterm-kitty', forced: '0' })).toBe(false)
+  })
+
+  test('toolDirs lists the install folders a desktop-started PATH may miss', () => {
+    expect(toolDirs('/home/u', undefined)).toEqual([
+      '/home/u/go/bin',
+      '/home/u/.cargo/bin',
+      '/home/u/.local/bin',
+      '/home/u/.npm-global/bin',
+      '/opt/homebrew/bin',
+      '/home/linuxbrew/.linuxbrew/bin',
+      '/usr/local/bin',
+    ])
+    expect(toolDirs('/home/u', '/home/u/go:/other')[0]).toBe('/home/u/go/bin')
+    expect(toolDirs('/home/u', '/home/u/go').filter(d => d === '/home/u/go/bin')).toHaveLength(1)
+    expect(toolDirs(undefined, undefined)).toEqual(['/opt/homebrew/bin', '/home/linuxbrew/.linuxbrew/bin', '/usr/local/bin'])
   })
 
   test('formatFor picks pixels, text or nothing per surface', () => {

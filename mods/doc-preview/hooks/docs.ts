@@ -728,6 +728,17 @@ export function imageBox(
   return { columns, rows: Math.max(2, Math.min(255, rows)) }
 }
 
+/**
+ * Folders tools are installed to that an app started from the desktop, such as
+ * VS Code, may leave off its PATH: Go's and Cargo's bins, pipx and npm prefixes, Homebrew.
+ */
+export function toolDirs(home: string | undefined, gopath: string | undefined): string[] {
+  const goBin = gopath ? [`${gopath.split(':')[0]}/bin`] : []
+  const own = home ? [`${home}/go/bin`, `${home}/.cargo/bin`, `${home}/.local/bin`, `${home}/.npm-global/bin`] : []
+
+  return [...new Set([...goBin, ...own, '/opt/homebrew/bin', '/home/linuxbrew/.linuxbrew/bin', '/usr/local/bin'])]
+}
+
 /** The variables a terminal is told apart by; any of them may be unset. */
 export type TerminalEnv = Partial<Record<'term' | 'program' | 'kittyWindow' | 'ghostty' | 'forced', string>>
 

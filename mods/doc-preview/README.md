@@ -125,7 +125,7 @@ The command is a file in the xorio plugin (`commands/preview.md`) that this mod 
 
 In a terminal without pixels, and in VS Code, state diagrams with composite states, forks or concurrency, gantt charts with dates other than `YYYY-MM-DD`, and other types (mindmap, timeline, journey, …) fall back to the source.
 
-The mod checks for these tools when it loads; reload the plugin after installing one. Rendered files are cached in `~/.cache/claude-doc-preview/`.
+The mod checks for these tools when it loads; reload the plugin (`/reload-plugins`) after installing one. Besides PATH it looks in `~/go/bin`, `$GOPATH/bin`, `~/.cargo/bin`, `~/.local/bin`, `~/.npm-global/bin` and Homebrew's and `/usr/local`'s bins, since an app started from the desktop (VS Code, say) often runs with a shorter PATH than your shell. Rendered files are cached in `~/.cache/claude-doc-preview/`.
 
 ## Develop
 
