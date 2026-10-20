@@ -12,6 +12,7 @@ import {
   diagramTitle,
   expandPath,
   flattenPeleSvg,
+  drawsImagesIn,
   formatFor,
   imageBox,
   inlineRuns,
@@ -277,6 +278,18 @@ describe('rendering helpers', () => {
   test('imageBox keeps the aspect for cells twice as tall as wide', () => {
     expect(imageBox({ width: 1600, height: 800 }, 200)).toEqual({ columns: 100, rows: 25 })
     expect(imageBox({ width: 1600, height: 800 }, 40)).toEqual({ columns: 40, rows: 10 })
+  })
+
+  test('drawsImagesIn trusts the terminal that names itself over variables leaked from another', () => {
+    expect(drawsImagesIn({ term: 'xterm-kitty' })).toBe(true)
+    expect(drawsImagesIn({ term: 'xterm-ghostty', program: 'ghostty' })).toBe(true)
+    expect(drawsImagesIn({ kittyWindow: '1' })).toBe(true)
+    // VS Code (or Warp) opened from Ghostty or kitty inherits their variables.
+    expect(drawsImagesIn({ term: 'xterm-256color', program: 'vscode', ghostty: '/Applications/Ghostty.app' })).toBe(false)
+    expect(drawsImagesIn({ program: 'WarpTerminal', kittyWindow: '3' })).toBe(false)
+    expect(drawsImagesIn({ term: 'xterm-256color' })).toBe(false)
+    expect(drawsImagesIn({ program: 'vscode', forced: '1' })).toBe(true)
+    expect(drawsImagesIn({ term: 'xterm-kitty', forced: '0' })).toBe(false)
   })
 
   test('formatFor picks pixels, text or nothing per surface', () => {

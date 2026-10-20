@@ -728,6 +728,24 @@ export function imageBox(
   return { columns, rows: Math.max(2, Math.min(255, rows)) }
 }
 
+/** The variables a terminal is told apart by; any of them may be unset. */
+export type TerminalEnv = Partial<Record<'term' | 'program' | 'kittyWindow' | 'ghostty' | 'forced', string>>
+
+/**
+ * Whether the terminal draws kitty's placeholder images: kitty or Ghostty.
+ * `TERM` and `TERM_PROGRAM` are set by the terminal Claude Code runs in, while
+ * `KITTY_WINDOW_ID` and `GHOSTTY_RESOURCES_DIR` leak into terminals started
+ * from one (VS Code opened from Ghostty), so they count only when no other
+ * terminal names itself. `DOC_PREVIEW_IMAGES` (`1` or `0`) overrides.
+ */
+export function drawsImagesIn({ term, program, kittyWindow, ghostty, forced }: TerminalEnv): boolean {
+  if (forced === '1' || forced === '0') return forced === '1'
+  const isKittyOrGhostty = (name: string | undefined) => /kitty|ghostty/i.test(name ?? '')
+  if (isKittyOrGhostty(term) || isKittyOrGhostty(program)) return true
+
+  return !program && (kittyWindow !== undefined || ghostty !== undefined)
+}
+
 /**
  * Which inline format a surface gets, or null to show the diagram's source.
  * The desktop and mobile apps always get SVG: pele draws it inside the mod.

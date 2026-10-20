@@ -11,7 +11,7 @@ A Claude Code **mod** (a plugin of function hooks) that previews Markdown and Me
 |-----|----------------|-----------------|
 | Claude Code in a terminal | Yes | PNG on kitty and Ghostty, text elsewhere (see [How things are drawn](#how-things-are-drawn)) |
 | Claude desktop app | Yes | SVG, drawn by pele |
-| Claude Code for VS Code | Yes | Text by `mermaid-ascii`, as in a terminal: the extension's panel shows an SVG's alt text only |
+| Claude Code for VS Code | Yes | Text by `mermaid-ascii`, as in a terminal: the extension's panel draws no images, and neither does VS Code's integrated terminal |
 | Claude web app (claude.ai/code) | No | — |
 
 A mod draws only on the surfaces Claude Code's mod engine knows. In 2.1.304 those are the terminal, the desktop app, VS Code and the Claude mobile app; the web app at claude.ai/code isn't one of them, so the mod has nothing to draw on there. In every app, "open in browser" (`b`) shows every diagram drawn in full.
@@ -36,7 +36,7 @@ Taken from a real Claude Code 2.1.303 session in kitty, with `resvg` installed: 
 
 ### Diagrams as text in other terminals
 
-Claude Code draws images only in terminals that support kitty's Unicode placeholder images (kitty and Ghostty today). In other terminals, Warp, iTerm2 and WezTerm among them, it draws an image's alt text, so the pane draws the diagrams as text there. To try images in a terminal that isn't detected, start Claude Code with `DOC_PREVIEW_IMAGES=1`. With `DOC_PREVIEW_IMAGES=0` the pane draws text everywhere. Either way, "open in browser" shows every diagram drawn in full.
+Claude Code draws images only in terminals that support kitty's Unicode placeholder images (kitty and Ghostty today). In other terminals, Warp, iTerm2 and WezTerm among them, it draws an image's alt text, so the pane draws the diagrams as text there. The mod goes by `TERM` and `TERM_PROGRAM`, so a terminal opened from kitty or Ghostty (VS Code started from Ghostty, say) still gets text. To try images in a terminal that isn't detected, start Claude Code with `DOC_PREVIEW_IMAGES=1`. With `DOC_PREVIEW_IMAGES=0` the pane draws text everywhere. Either way, "open in browser" shows every diagram drawn in full.
 
 Taken from real sessions in a 200-column terminal, with `mermaid-ascii` installed.
 
