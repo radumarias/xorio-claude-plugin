@@ -795,17 +795,24 @@ export function schemeFor(theme: unknown, colorfgbg: string | undefined): Scheme
  * Pele's SVG with its CSS variables resolved: it themes through
  * `--_x: var(--pele-x, fallback)` on the root and `var(--_x)` below, which
  * resvg and librsvg don't follow and an image's host page can't set anyway.
+ * Only tags are rewritten: a label's text (pele escapes `<` and `>` in it)
+ * is drawn as written, even when it reads like a variable.
  */
 export function flattenPeleSvg(svg: string, theme: Partial<Record<string, string>> = PELE_THEMES.light): string {
+  const inTags = (text: string, edit: (tag: string) => string) => text.replace(/<[^>]*>/g, edit)
   const local = new Map<string, string>()
-  const declared = svg.replace(/--(_[\w-]+):var\(--pele-([\w-]+),([^)]*)\);?/g, (_, name: string, key: string, fallback: string) => {
-    local.set(name, theme[key] ?? fallback)
-    return ''
-  })
+  const declared = inTags(svg, tag =>
+    tag.replace(/--(_[\w-]+):var\(--pele-([\w-]+),([^)]*)\);?/g, (_, name: string, key: string, fallback: string) => {
+      local.set(name, theme[key] ?? fallback)
+      return ''
+    }),
+  )
 
-  return declared
-    .replace(/var\(--(_[\w-]+)\)/g, (whole, name: string) => local.get(name) ?? whole)
-    .replace(/var\(--pele-[\w-]+,([^)]*)\)/g, '$1')
+  return inTags(declared, tag =>
+    tag
+      .replace(/var\(--(_[\w-]+)\)/g, (whole, name: string) => local.get(name) ?? whole)
+      .replace(/var\(--pele-[\w-]+,([^)]*)\)/g, '$1'),
+  )
 }
 
 /**
