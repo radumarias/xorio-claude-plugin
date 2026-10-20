@@ -5,6 +5,17 @@ A Claude Code **mod** (a plugin of function hooks) that previews Markdown and Me
 > [!NOTE]
 > Mods run on Claude Code's function-hooks API, which is early access and may change between releases. This mod was built and tested against Claude Code 2.1.291.
 
+## Where it runs
+
+| App | Panel and band | Diagrams inline |
+|-----|----------------|-----------------|
+| Claude Code in a terminal | Yes | PNG on kitty and Ghostty, text elsewhere (see [How things are drawn](#how-things-are-drawn)) |
+| Claude desktop app | Yes | SVG, drawn by pele |
+| Claude Code for VS Code | Yes | Text by `mermaid-ascii`, as in a terminal: the extension's panel shows an SVG's alt text only |
+| Claude web app (claude.ai/code) | No | — |
+
+A mod draws only on the surfaces Claude Code's mod engine knows. In 2.1.304 those are the terminal, the desktop app, VS Code and the Claude mobile app; the web app at claude.ai/code isn't one of them, so the mod has nothing to draw on there. In every app, "open in browser" (`b`) shows every diagram drawn in full.
+
 ## Screenshots
 
 ### Diagrams as images in kitty and Ghostty
@@ -101,18 +112,18 @@ The command is a file in the xorio plugin (`commands/preview.md`) that this mod 
 
 - **Markdown** uses Claude Code's own renderer (headings, lists, code). On the terminal the mod draws tables itself, fitted to the panel (see above).
 - **Open in browser** writes a page to `~/.cache/claude-doc-preview/` and opens it with the system opener (`xdg-open`, `open` or `explorer`). The page renders the Markdown and every Mermaid diagram. It loads marked, DOMPurify and pele from jsDelivr at exact versions with SRI hashes; a strict Content-Security-Policy, DOMPurify (which also sanitizes each diagram's SVG) and pele's own escaping keep the document's own HTML from running script.
-- **Mermaid inside the panel** is drawn by [pele](https://pele.run/) (MIT, from the Obsidian team), a dependency-free Mermaid-to-SVG renderer vendored in the mod (`hooks/vendor/pele.js`), so it runs inside Claude Code with no browser. Pele covers every Mermaid diagram type, with its own layout and look, so a diagram won't match mermaid.js pixel for pixel. A terminal can't show SVG, so what it shows depends on what is installed:
+- **Mermaid inside the panel** is drawn by [pele](https://pele.run/) (MIT, from the Obsidian team), a dependency-free Mermaid-to-SVG renderer vendored in the mod (`hooks/vendor/pele.js`), so it runs inside Claude Code with no browser. Pele covers every Mermaid diagram type, with its own layout and look, so a diagram won't match mermaid.js pixel for pixel. Neither a terminal nor VS Code shows SVG, so what they show depends on what is installed:
 
 | Where | Needs | Drawn as |
 |-------|-------|----------|
-| Desktop app / VS Code | — | SVG image, by pele, light or dark as the app is |
+| Desktop app | — | SVG image, by pele, light or dark as the app is |
 | kitty or Ghostty | [`resvg`](https://github.com/linebender/resvg) (`cargo install resvg`, `brew install resvg`) or `rsvg-convert` (librsvg) | PNG image: pele's SVG rasterized at 2×, light or dark as Claude Code's theme is |
 | kitty or Ghostty, neither of those | `mmdc` ([`@mermaid-js/mermaid-cli`](https://github.com/mermaid-js/mermaid-cli)) | PNG image, by mermaid.js in a headless browser |
-| Terminal | [`mermaid-ascii`](https://github.com/AlexanderGrooff/mermaid-ascii) | Text-art diagram: flowcharts, sequence and ER diagrams, plus state and class diagrams, which the mod rewrites as flowcharts first (class members are left out) |
-| Terminal, no pixels | — | Pie charts as labelled bars and gantt charts as a day-scale timeline, drawn by the mod itself |
-| Terminal, no tool for the type | — | The diagram's source, with a hint to press `b` |
+| Terminal or VS Code | [`mermaid-ascii`](https://github.com/AlexanderGrooff/mermaid-ascii) | Text-art diagram: flowcharts, sequence and ER diagrams, plus state and class diagrams, which the mod rewrites as flowcharts first (class members are left out) |
+| Terminal or VS Code, no pixels | — | Pie charts as labelled bars and gantt charts as a day-scale timeline, drawn by the mod itself |
+| Terminal or VS Code, no tool for the type | — | The diagram's source, with a hint to press `b` |
 
-In a terminal without pixels, state diagrams with composite states, forks or concurrency, gantt charts with dates other than `YYYY-MM-DD`, and other types (mindmap, timeline, journey, …) fall back to the source.
+In a terminal without pixels, and in VS Code, state diagrams with composite states, forks or concurrency, gantt charts with dates other than `YYYY-MM-DD`, and other types (mindmap, timeline, journey, …) fall back to the source.
 
 The mod checks for these tools when it loads; reload the plugin after installing one. Rendered files are cached in `~/.cache/claude-doc-preview/`.
 

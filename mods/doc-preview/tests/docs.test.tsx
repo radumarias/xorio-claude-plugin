@@ -287,9 +287,13 @@ describe('rendering helpers', () => {
     expect(formatFor('terminal', all)).toBe('ascii')
     expect(formatFor('terminal', { ...all, ascii: false })).toBeNull()
     expect(formatFor('terminal', null)).toBeNull()
-    // Pele is built in: the GUI surfaces draw SVG whatever is installed.
+    // Pele is built in: the apps that draw SVG get it whatever is installed.
     expect(formatFor('desktop', { ...all, rasterizer: null })).toBe('svg')
-    expect(formatFor('vscode', null)).toBe('svg')
+    expect(formatFor('mobile', null)).toBe('svg')
+    // VS Code's panel draws an Svg's alt text only, and no pixels: text, as on a terminal.
+    expect(formatFor('vscode', { ...all, drawsImages: true })).toBe('ascii')
+    expect(formatFor('vscode', { ...all, ascii: false })).toBeNull()
+    expect(formatFor('vscode', null)).toBeNull()
   })
 })
 

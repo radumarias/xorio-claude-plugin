@@ -2,7 +2,7 @@
 
 A sample document mixing **Markdown** and *Mermaid* to exercise the `doc-preview` mod. It covers the common Markdown blocks, six diagram types, a wide table and a few edge cases. See the [Mermaid docs](https://mermaid.js.org/) for syntax.
 
-> **Note:** diagrams draw inline in the desktop app and VS Code; in a terminal, with `resvg` on kitty or Ghostty or `mermaid-ascii` elsewhere. Press `b` to see them drawn in the browser.
+> **Note:** diagrams draw inline in the desktop app; in a terminal, with `resvg` on kitty or Ghostty or `mermaid-ascii` elsewhere; in VS Code, with `mermaid-ascii`. Press `b` to see them drawn in the browser.
 
 ## Goals
 
