@@ -347,30 +347,25 @@ async function peleFile($: Engine, dir: string, svg: string): Promise<string> {
   return file
 }
 
+/** mmdc's own drawing of the diagram as a PNG, at 2x, in its theme nearest the scheme. */
+async function runMmdc($: Engine, dir: string, source: string, scheme: Scheme, output: string) {
+  const input = `${dir}/${hashText(source)}.mmd`
+  await $.fs.write(input, source)
+  const colors = [...(scheme === 'dark' ? ['-t', 'dark'] : []), '-b', PELE_THEMES[scheme].bg]
+
+  return $.process.run(['mmdc', '-q', '-i', input, '-o', output, ...colors, '-s', '2'], { timeoutMs: 90_000 })
+}
+
 /** A PNG of the diagram in the scheme's colors: pele's SVG through resvg or rsvg-convert, or mmdc when neither is installed. */
 async function renderPng($: Engine, dir: string, { source, scheme, rasterizer }: RenderJob): Promise<DiagramRender> {
-  const id = hashText(source)
-  const svg = rasterizer === null ? '' : peleSvg(source, scheme)
-  const { tool, output, draw } =
-    rasterizer !== null
-      ? {
-          tool: rasterizer,
-          output: `${dir}/${hashText(svg)}.png`,
-          draw: async (out: string) =>
-            $.process.run(rasterArgv(rasterizer, await peleFile($, dir, svg), out), { timeoutMs: 30_000 }),
-        }
-      : {
-          tool: 'mmdc',
-          output: `${dir}/${id}.mmdc.${scheme}.png`,
-          draw: async (out: string) => {
-            const input = `${dir}/${id}.mmd`
-            await $.fs.write(input, source)
-            const colors = [...(scheme === 'dark' ? ['-t', 'dark'] : []), '-b', PELE_THEMES[scheme].bg]
-            return $.process.run(['mmdc', '-q', '-i', input, '-o', out, ...colors, '-s', '2'], { timeoutMs: 90_000 })
-          },
-        }
+  const svg = rasterizer === null ? null : peleSvg(source, scheme)
+  const tool = rasterizer ?? 'mmdc'
+  const output = svg === null ? `${dir}/${hashText(source)}.mmdc.${scheme}.png` : `${dir}/${hashText(svg)}.png`
   if (!(await $.fs.exists(output))) {
-    const ran = await draw(output)
+    const ran =
+      rasterizer === null || svg === null
+        ? await runMmdc($, dir, source, scheme, output)
+        : await $.process.run(rasterArgv(rasterizer, await peleFile($, dir, svg), output), { timeoutMs: 30_000 })
     if (ran.exitCode !== 0) return failed(tool, ran)
   }
   const { base64 } = await $.fs.read(output, { as: 'bytes' })
@@ -505,10 +500,16 @@ async function currentScheme($: Engine, theme?: ConfigValue): Promise<Scheme> {
 
 /** Draws the PNGs in the other scheme's colors when the theme setting flips light and dark. */
 async function followTheme($: Engine, theme: ConfigValue): Promise<void> {
-  const [found, scheme] = await Promise.all([read($, renderers), currentScheme($, theme)])
-  if (found === null || found.scheme === scheme) return
-  await update($, renderers, () => ({ ...found, scheme }))
-  ensureRenders($)
+  const scheme = await currentScheme($, theme)
+  // Changed on the stored value, not a copy read earlier: a detection landing in
+  // between keeps its tools.
+  let isFlipped = false
+  await update($, renderers, found => {
+    if (found === null || found.scheme === scheme) return found
+    isFlipped = true
+    return { ...found, scheme }
+  })
+  if (isFlipped) ensureRenders($)
 }
 
 async function detectRenderers($: Engine): Promise<void> {

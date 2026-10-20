@@ -343,6 +343,13 @@ describe('pele', () => {
     expect(flattenPeleSvg(svg, { fg: '#abc' })).toBe('<svg style="font-family:sans-serif" fill="#abc"><rect rx="4px"/></svg>')
   })
 
+  test('flattenPeleSvg leaves a label that reads like a variable as written', () => {
+    // Pele wraps it on two lines.
+    const svg = peleSvg('flowchart LR\n  A["var(--_fg) and --_x:var(--pele-bg,red);"] --> B', 'dark')
+    expect(svg.includes('>var(--_fg) and<')).toBe(true)
+    expect(svg.includes('>--_x:var(--pele-bg,red);<')).toBe(true)
+  })
+
   test('peleSvg throws on a diagram it cannot read', () => {
     expect(() => peleSvg('not a diagram at all', 'light')).toThrow()
   })
